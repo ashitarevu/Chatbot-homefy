@@ -1,0 +1,73 @@
+query GetComplaintDetail($complaintId: ID!) {
+        complaint(id: $complaintId) {
+            id
+            title
+            complaintId
+            status
+            createdAt
+            description
+            isUrgent
+            isEscalated
+            attachments {
+                fileName
+                id
+                mime
+                url
+            }
+            location
+            category {
+                id
+                name
+            }
+            createdBy {
+                id
+                user {
+                    firstName
+                    lastName
+                }
+                flat {
+                    flatNumber
+                    block {
+                        blockName
+                    }
+                }
+                roleType
+            }
+            assignee {
+                id
+                user {
+                    firstName
+                    lastName
+                }
+                flat {
+                    flatNumber
+                    block {
+                        blockName
+                    }
+                }
+                roleType
+            }
+            comments {
+                id
+                createdAt
+                message
+                createdBy {
+                    id
+                    user {
+                        firstName
+                        lastName
+                        image {
+                            url
+                        }
+                    }
+                    roleType
+                    flat {
+                        flatNumber
+                        block {
+                            blockName
+                        }
+                    }
+                }
+            }
+        }
+    }

@@ -1,0 +1,10 @@
+query AllVehicles {
+  allVehicles(filter: { perPage: 50, pageNumber: 1 }) {
+    count
+    data {
+      id
+      type
+      vehicleNumber
+    }
+  }
+}

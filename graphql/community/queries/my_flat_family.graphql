@@ -1,0 +1,16 @@
+query MyFlatFamilyMembers {
+  myApartments {
+    requests {
+      flat {
+        familyMembers {
+          id
+          name
+          phoneNumber
+          relationType
+          accessType
+          location
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+query AllComplaints($filter: ComplaintFilterInput!) {
+        allComplaints(filter: $filter) {
+            data {
+                id
+                complaintId
+                status
+                isUrgent
+                createdAt
+                category {
+                    name
+                }
+                createdBy {
+                    id
+                    user {
+                        firstName
+                        lastName
+                    }
+                    roleType
+                }
+                assignee {
+                    id
+                    user {
+                        firstName
+                        lastName
+                    }
+                    roleType
+                }
+            }
+            hasNext
+        }
+    }

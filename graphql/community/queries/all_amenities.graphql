@@ -1,0 +1,24 @@
+query AllAmenities {
+  allAmenities {
+    data {
+      id
+      name
+      bookingType
+      description
+      location
+      status
+      scheduleType
+      maxCapacityPerBooking
+      windowDuration
+      basePrice
+      minBooking
+      maxBooking
+      paymentType
+      category {
+        name
+      }
+    }
+    hasNext
+    count
+  }
+}

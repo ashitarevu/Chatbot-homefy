@@ -1,0 +1,15 @@
+query {
+  allOrders {
+    count
+    data {
+      id
+      orderNo
+      status
+      finalAmount
+      createdAt
+      store {
+        storeName
+      }
+    }
+  }
+}

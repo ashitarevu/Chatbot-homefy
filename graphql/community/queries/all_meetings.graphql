@@ -1,0 +1,15 @@
+query {
+  allMeetings(filter: {}) {
+    count
+    data {
+      id
+      title
+      description
+      link
+      location
+      startTime
+      endTime
+      status
+    }
+  }
+}

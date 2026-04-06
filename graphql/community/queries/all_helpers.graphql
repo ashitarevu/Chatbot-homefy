@@ -1,0 +1,13 @@
+query AllHelpers {
+  allHelpers(filter: { perPage: 50, pageNumber: 1 }) {
+    count
+    data {
+      id
+      type
+      name
+      phoneNumber
+      gender
+      status
+    }
+  }
+}

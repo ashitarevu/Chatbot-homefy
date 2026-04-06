@@ -1,0 +1,10 @@
+query {
+  allPets {
+    count
+    data {
+      id
+      name
+      type
+    }
+  }
+}

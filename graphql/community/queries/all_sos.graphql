@@ -1,0 +1,13 @@
+query {
+  allSos(filter: {}) {
+    count
+    data {
+      id
+      status
+      createdAt
+      category {
+        name
+      }
+    }
+  }
+}

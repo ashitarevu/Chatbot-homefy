@@ -1,0 +1,23 @@
+query MyBills {
+  myBills(filter: {}) {
+    count
+    data {
+      id
+      billId
+      amount
+      totalAmount
+      fineAmount
+      status
+      lastDate
+      isOverDue
+      notes
+      category {
+        name
+      }
+      maintenance {
+        title
+        description
+      }
+    }
+  }
+}

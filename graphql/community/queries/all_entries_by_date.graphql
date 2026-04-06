@@ -1,0 +1,20 @@
+query {
+  allEntriesByDate(filter: {}) {
+    count
+    data {
+      id
+      name
+      status
+      passcode
+      purpose
+      noOfPeoples
+      vehicleNumber
+      scheduledOn
+      visitorType
+      isSecretEntry
+      category {
+        name
+      }
+    }
+  }
+}

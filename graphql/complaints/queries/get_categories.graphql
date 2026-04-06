@@ -1,0 +1,8 @@
+query AllCategories($filter: CategoryFilterInput!) {
+    allCategories(filter: $filter) {
+        data {
+            id
+            name
+        }
+    }
+}

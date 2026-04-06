@@ -1,0 +1,23 @@
+query MyBookings {
+  myBookings {
+    data {
+      id
+      status
+      amount
+      actualAmount
+      createdAt
+      notes
+      amenity {
+        name
+        location
+      }
+      slot {
+        date
+        startTime
+        endTime
+      }
+    }
+    hasNext
+    count
+  }
+}

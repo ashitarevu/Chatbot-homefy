@@ -1,0 +1,13 @@
+query {
+  allFamilyMembers(filter: {}) {
+    count
+    data {
+      id
+      name
+      phoneNumber
+      relationType
+      accessType
+      location
+    }
+  }
+}

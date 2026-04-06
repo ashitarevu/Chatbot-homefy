@@ -1,0 +1,13 @@
+query {
+  allForums(filter: {}) {
+    count
+    data {
+      id
+      title
+      description
+      likesCount
+      commentsCount
+      createdAt
+    }
+  }
+}

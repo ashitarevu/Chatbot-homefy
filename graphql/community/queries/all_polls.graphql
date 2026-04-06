@@ -1,0 +1,13 @@
+query {
+  allPolls(filter: {}) {
+    count
+    data {
+      id
+      topic
+      description
+      optionType
+      totalVotes
+      endsAt
+    }
+  }
+}

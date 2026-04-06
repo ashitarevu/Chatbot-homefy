@@ -1,0 +1,12 @@
+query {
+  myVehicles {
+    count
+    data {
+      id
+      type
+      vehicleNumber
+      createdAt
+      updatedAt
+    }
+  }
+}

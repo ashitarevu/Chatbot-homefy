@@ -1,0 +1,11 @@
+query GetMyApartments {
+  myApartments {
+    id
+    name
+    requests {
+      id
+      accessType
+      accessStatus
+    }
+  }
+}

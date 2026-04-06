@@ -1,0 +1,28 @@
+
+query AllFlats($filter: FlatFilterInput!) {
+  allFlats(filter: $filter) {
+    count
+    data {
+      id
+      flatNumber
+      floorNo
+      status
+      requests {
+        accessStatus
+        accessType
+        roleType
+        id
+        roleType
+        user {
+          firstName
+          lastName
+          phoneNumber
+        }
+      }
+      block {
+        blockName
+      }
+    }
+    hasNext
+  }
+}

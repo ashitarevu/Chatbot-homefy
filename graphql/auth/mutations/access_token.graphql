@@ -1,0 +1,5 @@
+query AccessToken($data: AccessTokenInput!) {
+  accessToken(data: $data) {
+    token
+  }
+}
