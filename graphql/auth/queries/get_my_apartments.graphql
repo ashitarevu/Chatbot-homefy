@@ -6,6 +6,12 @@ query GetMyApartments {
       id
       accessType
       accessStatus
+      flat {
+        flatNumber
+        block {
+          blockName
+        }
+      }
     }
   }
 }

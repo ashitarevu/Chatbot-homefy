@@ -51,6 +51,7 @@
         <h2>Hi! I'm your Homefy Assistant</h2>
         <p>I can help you with bookings, complaints, visitors, bills, and much more.</p>
         <div class="quick-chips">
+          <button class="chip" onclick="sendQuick('I want to raise a complaint')">📝 Raise a Complaint</button>
           <button class="chip" onclick="sendQuick('Show my amenity bookings')">🏊 Amenity Bookings</button>
           <button class="chip" onclick="sendQuick('Show my complaints')">📋 My Complaints</button>
           <button class="chip" onclick="sendQuick('Show my bills')">💳 My Bills</button>
@@ -129,6 +130,12 @@
     }
 
     function appendMessage(role, text) {
+      // ── Complaint Form Detection ──────────────────────────────────
+      if (role === 'bot' && text.trim() === '__COMPLAINT_FORM_MARKER__') {
+        renderComplaintForm();
+        return;
+      }
+
       const row = document.createElement('div');
       row.className = `msg-row ${role}`;
 
@@ -278,6 +285,199 @@
       userInput.style.height = 'auto';
       userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
     });
+
+    // ── Complaint Form Logic ────────────────────────────────────────
+    function renderComplaintForm() {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.id = 'complaintFormRow';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.textContent = '🏠';
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      inner.style.maxWidth = '92%';
+
+      const card = document.createElement('div');
+      card.className = 'complaint-form-card';
+      card.innerHTML = `
+        <div class="complaint-form-header">
+          <span class="form-icon">📋</span>
+          <span>Fill in the details to raise your complaint</span>
+        </div>
+        <div class="complaint-form-body">
+
+          <div class="cform-group" id="cfgCategory">
+            <label class="cform-label">Category <span class="required">*</span></label>
+            <select class="cform-select" id="cfCategory">
+              <option value="" disabled selected>Loading categories...</option>
+            </select>
+            <div class="cform-error">Please select a category</div>
+          </div>
+
+          <div class="cform-group" id="cfgType">
+            <label class="cform-label">Complaint Type <span class="required">*</span></label>
+            <div class="cform-radio-group">
+              <label class="cform-radio">
+                <input type="radio" name="cfType" value="PERSONAL" checked />
+                <span>🏠 Personal (Flat)</span>
+              </label>
+              <label class="cform-radio">
+                <input type="radio" name="cfType" value="COMMUNITY" />
+                <span>🏘️ Community (Common)</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="cform-group" id="cfgUrgency">
+            <label class="cform-label">Is it urgent? <span class="required">*</span></label>
+            <div class="cform-radio-group">
+              <label class="cform-radio">
+                <input type="radio" name="cfUrgent" value="false" checked />
+                <span>No</span>
+              </label>
+              <label class="cform-radio">
+                <input type="radio" name="cfUrgent" value="true" />
+                <span>🚨 Yes, Urgent</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="cform-group" id="cfgDesc">
+            <label class="cform-label">Description <span class="required">*</span></label>
+            <textarea class="cform-textarea" id="cfDescription" placeholder="Describe the issue in detail..."></textarea>
+            <div class="cform-error">Please describe the issue</div>
+          </div>
+
+          <div class="cform-group" id="cfgLocation">
+            <label class="cform-label">Location <span style="color:var(--muted);font-weight:400;font-size:12px">(optional)</span></label>
+            <input type="text" class="cform-input" id="cfLocation" placeholder="e.g., Kitchen, Lobby, Block A parking" />
+          </div>
+
+          <div class="cform-actions">
+            <button class="cform-submit" id="cfSubmitBtn" onclick="submitComplaintForm()">
+              <span class="spinner"></span>
+              <span class="btn-text">Submit Complaint</span>
+            </button>
+            <button class="cform-cancel" onclick="cancelComplaintForm()">Cancel</button>
+          </div>
+
+        </div>
+      `;
+
+      inner.appendChild(card);
+
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+
+      row.appendChild(inner);
+
+      // Animate in
+      row.style.opacity = '0';
+      row.style.transform = 'translateY(12px)';
+      chatBody.appendChild(row);
+
+      requestAnimationFrame(() => {
+        row.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      });
+
+      scrollToBottom();
+      loadFormCategories();
+    }
+
+    async function loadFormCategories() {
+      const sel = document.getElementById('cfCategory');
+      if (!sel) return;
+      try {
+        const res = await fetch(`/api/complaints/categories?session_id=${encodeURIComponent(sessionId)}`);
+        const data = await res.json();
+        const cats = data.categories || [];
+        sel.innerHTML = '<option value="" disabled selected>Select category...</option>';
+        cats.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name;
+          sel.appendChild(opt);
+        });
+      } catch {
+        sel.innerHTML = '<option value="" disabled selected>Failed to load categories</option>';
+      }
+    }
+
+    async function submitComplaintForm() {
+      // Validate
+      let valid = true;
+      const catGroup = document.getElementById('cfgCategory');
+      const descGroup = document.getElementById('cfgDesc');
+      const catVal = document.getElementById('cfCategory').value;
+      const descVal = document.getElementById('cfDescription').value.trim();
+
+      catGroup.classList.toggle('has-error', !catVal);
+      descGroup.classList.toggle('has-error', !descVal);
+      if (!catVal || !descVal) return;
+
+      const typeVal = document.querySelector('input[name="cfType"]:checked')?.value || 'PERSONAL';
+      const urgentVal = document.querySelector('input[name="cfUrgent"]:checked')?.value === 'true';
+      const locVal = document.getElementById('cfLocation').value.trim();
+
+      const btn = document.getElementById('cfSubmitBtn');
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/complaints/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            category_id: catVal,
+            type: typeVal,
+            is_urgent: urgentVal,
+            description: descVal,
+            location: locVal
+          })
+        });
+
+        const data = await res.json();
+
+        // Remove the form
+        const formRow = document.getElementById('complaintFormRow');
+        if (formRow) formRow.remove();
+
+        if (data.status === 'success') {
+          appendMessage('bot', `✅ **Complaint raised successfully!**\n\n${data.message}\n\nYou can view this complaint in the Homefy app under **My Complaints**.`);
+        } else {
+          appendMessage('bot', `⚠️ ${data.error || data.message || 'Failed to raise complaint. Please try again.'}`);
+        }
+      } catch (e) {
+        const formRow = document.getElementById('complaintFormRow');
+        if (formRow) formRow.remove();
+        appendMessage('bot', '⚠️ Network error while raising complaint. Please check your connection and try again.');
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    function cancelComplaintForm() {
+      const formRow = document.getElementById('complaintFormRow');
+      if (formRow) {
+        formRow.style.transition = 'all 0.3s ease';
+        formRow.style.opacity = '0';
+        formRow.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+          formRow.remove();
+          appendMessage('bot', 'Complaint form cancelled. How else can I help you?');
+        }, 300);
+      }
+    }
 
     userInput.focus();
   </script>

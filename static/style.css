@@ -282,6 +282,286 @@ textarea::placeholder { color: var(--muted); }
   margin-top: 8px;
 }
 
+/* ── Complaint Form (Embedded in chat bubble) ────────────────── */
+.complaint-form-card {
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid rgba(124,92,252,0.3);
+  border-radius: 18px;
+  padding: 0;
+  overflow: hidden;
+  max-width: 100%;
+  animation: formSlideIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes formSlideIn {
+  0%   { opacity: 0; transform: translateY(16px) scale(0.97); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.complaint-form-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px 14px;
+  background: linear-gradient(135deg, rgba(124,92,252,0.15), rgba(6,182,212,0.10));
+  border-bottom: 1px solid rgba(124,92,252,0.2);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.complaint-form-header .form-icon {
+  font-size: 18px;
+}
+
+.complaint-form-body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Field Group */
+.cform-group {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  transition: border-color 0.2s;
+}
+.cform-group:focus-within {
+  border-color: rgba(124,92,252,0.5);
+}
+
+.cform-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent2);
+  margin-bottom: 10px;
+}
+.cform-label::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+.cform-label .required {
+  color: #f87171;
+  font-weight: 700;
+}
+
+/* Select / Dropdown */
+.cform-select {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%236b6b8a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cform-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.cform-select option {
+  background: #1a1a2e;
+  color: var(--text);
+}
+
+/* Radio Group */
+.cform-radio-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.cform-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--text);
+  transition: all 0.2s;
+  user-select: none;
+}
+.cform-radio:hover {
+  background: rgba(124,92,252,0.1);
+  border-color: rgba(124,92,252,0.3);
+}
+.cform-radio input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--muted);
+  border-radius: 50%;
+  margin: 0;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+.cform-radio input[type="radio"]:checked {
+  border-color: var(--accent);
+}
+.cform-radio input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+.cform-radio:has(input:checked) {
+  background: rgba(124,92,252,0.12);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Textarea */
+.cform-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cform-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.cform-textarea::placeholder { color: var(--muted); }
+
+/* Text input */
+.cform-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cform-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+.cform-input::placeholder { color: var(--muted); }
+
+/* Submit Row */
+.cform-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+}
+.cform-submit {
+  flex: 1;
+  padding: 12px 20px;
+  background: linear-gradient(135deg, #7c5cfc, #a855f7);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+  position: relative;
+  overflow: hidden;
+}
+.cform-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px var(--accent-glow);
+}
+.cform-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+.cform-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.cform-submit .spinner {
+  display: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  margin-right: 8px;
+}
+.cform-submit.loading .spinner { display: inline-block; }
+.cform-submit.loading .btn-text { opacity: 0.7; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.cform-cancel {
+  padding: 12px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.cform-cancel:hover {
+  color: var(--text);
+  border-color: rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.05);
+}
+
+/* Validation Error */
+.cform-error {
+  color: #f87171;
+  font-size: 12px;
+  margin-top: 6px;
+  display: none;
+}
+.cform-group.has-error .cform-error {
+  display: block;
+}
+.cform-group.has-error .cform-select,
+.cform-group.has-error .cform-textarea,
+.cform-group.has-error .cform-input {
+  border-color: #f87171;
+}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .chat-wrapper { max-width: 100%; border: none; }
@@ -289,4 +569,7 @@ textarea::placeholder { color: var(--muted); }
   .quick-chips  { gap: 6px; }
   .chip         { font-size: 12px; padding: 6px 11px; }
   .login-modal  { width: 90%; padding: 24px 20px; }
+  .complaint-form-body { padding: 12px 14px 16px; }
+  .cform-radio-group { gap: 6px; }
+  .cform-radio { padding: 6px 12px; font-size: 12px; }
 }

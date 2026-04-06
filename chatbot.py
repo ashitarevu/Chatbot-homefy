@@ -49,20 +49,9 @@ Keep responses short and easy to read. Use bullet points for lists.
 5. Keep all responses concise. No walls of text.
 
 --- COMPLAINT CREATION FLOW ---
-When the user wants to raise/create/add a complaint, follow this exact flow:
-1. Show the available complaint categories from the context (by NAME only, never show IDs to the user):
-   Example: "Please select a category: Electricity, Plumbing, Water, Cleaning, Lifts, Carpenter, Payment"
-2. Ask the user to describe the issue (this becomes both the title and description).
-3. Ask if it is urgent (yes/no).
-4. Ask if it is a personal (flat) issue or a community (common area) issue.
-5. ONLY after you have ALL the above info, call create_complaint with:
-   - title: a short summary you generate from their description
-   - description: the user's full description
-   - category_id: the ID from the context that matches the category NAME the user chose (YOU look it up, never ask the user for IDs)
-   - type: "PERSONAL" or "COMMUNITY"
-   - is_urgent: true or false
-   - location: if the user mentioned a location, include it; otherwise use ""
-IMPORTANT: NEVER ask the user for category IDs. You have the ID mapping in the context — use it.
+If the user wants to raise/create/add a complaint, you MUST reply with exactly this special marker:
+__COMPLAINT_FORM_MARKER__
+Do NOT ask for description, category, or any other details. Just reply precisely with that marker so the system can show the interactive form.
 
 --- FUNCTION CALLING RULES (MUST FOLLOW STRICTLY) ---
 1. NEVER call a function inside another function. Functions cannot be nested.
@@ -72,41 +61,18 @@ IMPORTANT: NEVER ask the user for category IDs. You have the ID mapping in the c
    - Step 2: Only AFTER receiving real slot IDs from the system response, call create_amenity_booking with those IDs.
 4. The slot_ids parameter in create_amenity_booking MUST contain actual ID strings returned by get_amenity_slots. NEVER pass function calls, placeholders, or made-up text as slot_ids.
 5. If get_amenity_slots returns an error or empty slots, inform the user — do NOT proceed to create_amenity_booking.
-6. NEVER invent or guess function names. Only call: create_complaint, get_amenity_slots, create_amenity_booking.
+6. NEVER invent or guess function names. Only call: get_amenity_slots, create_amenity_booking.
 """
 
 # ── Model config ───────────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-OLLAMA_MODEL   = os.getenv("OLLAMA_MODEL", "llama3.2")
+OLLAMA_MODEL   = os.getenv("OLLAMA_MODEL", "gpt-oss:20b")
 
 MAX_HISTORY = 20   # keep last 20 messages per session
 
 LLM_TOOLS = [
     {
-        "type": "function",
-        "function": {
-            "name": "create_complaint",
-            "description": (
-                "Raise a complaint on behalf of the user. "
-                "ONLY call this when you have ALL required fields with REAL values from the conversation. "
-                "If the user has not provided a description, ASK for it first. "
-                "NEVER use placeholder text like 'complaint_title' or 'true_or_false' as values."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "title": {"type": "string", "description": "A short descriptive title for the complaint. Must be a real title, not a placeholder."},
-                    "description": {"type": "string", "description": "Detailed description of the issue provided by the user. Must be real text, not a placeholder."},
-                    "location": {"type": "string", "description": "Where the issue is located (e.g., Kitchen). Use empty string if not mentioned."},
-                    "category_id": {"type": "string", "description": "The exact ID of the matching category from the Complaint Categories context. Must be a real ID string."},
-                    "type": {"type": "string", "enum": ["PERSONAL", "COMMUNITY"], "description": "PERSONAL for flat/unit issues. COMMUNITY for common area issues."},
-                    "is_urgent": {"type": "boolean", "description": "true if the user said it is urgent/emergency, otherwise false."}
-                },
-                "required": ["title", "description", "category_id", "type"]
-            }
-        }
-    },
-    {
+
         "type": "function",
         "function": {
             "name": "create_amenity_booking",
@@ -213,7 +179,8 @@ class HomefyChatbot:
         write_keywords = [
             "book", "create", "raise", "register", "add", "make a complaint",
             "file a complaint", "submit", "want to book", "schedule", "i want to raise",
-            "i want to create", "can you book", "please book", "make a booking"
+            "i want to create", "can you book", "please book", "make a booking",
+            "form"
         ]
         return any(w in msg for w in write_keywords)
 
@@ -269,8 +236,8 @@ class HomefyChatbot:
             return "You have been fully logged out of the chatbot session. To start a new session, you can type 'login' followed by your phone number."
             
         # Trigger login flow (forcibly resets state if they type login again)
-        if "login" in msg_lower or "sign in" in msg_lower or "authenticate" in msg_lower:
-            phone_candidates = ''.join(filter(str.isdigit, user_message))
+        phone_candidates = ''.join(filter(str.isdigit, user_message))
+        if "login" in msg_lower or "sign in" in msg_lower or "authenticate" in msg_lower or (len(phone_candidates) == 10 and current_state == "normal" and not user_token):
             if len(phone_candidates) == 10:
                 # User provided phone number directly! e.g., "login 8897319627"
                 import auth
@@ -385,14 +352,42 @@ class HomefyChatbot:
                 return reply
                 
             # Multiple apartments -> ask user to choose
-            options = "\n".join([f"{i+1}. {apt.get('name')} (Role: {apt.get('requests', [{}])[0].get('accessType', 'Unknown') if apt.get('requests') else 'Resident'})" for i, apt in enumerate(apts_list)])
+            options = []
+            for i, apt in enumerate(apts_list):
+                apt_name = apt.get("name", "")
+                role = "Resident"
+                display_name = apt_name
+                
+                reqs = apt.get("requests", [])
+                if reqs and isinstance(reqs, list) and len(reqs) > 0:
+                    role = reqs[0].get("accessType", "Resident")
+                    
+                    # Fetch block and flat number from the nested 'flat' object inside 'requests'
+                    flat_obj = reqs[0].get("flat") or {}
+                    flat_num = flat_obj.get("flatNumber", "")
+                    block_obj = flat_obj.get("block") or {}
+                    block_name = block_obj.get("blockName", "")
+                    
+                    if flat_num:
+                        if block_name:
+                            display_name = f"{apt_name} - {block_name}-{flat_num}"
+                        else:
+                            display_name = f"{apt_name} - {flat_num}"
+                        
+                # Fallback for purely numeric apartment names lacking nested flat data 
+                if display_name == apt_name and apt_name.isdigit():
+                    display_name = f"Flat {apt_name}"
+                    
+                options.append(f"{i+1}. {display_name} (Role: {role})")
+                
+            options_str = "\n".join(options)
             self.session_states[session_id] = {
                 "state": "awaiting_apartment",
                 "apartments": apts_list,
                 "initial_token": initial_token
             }
             
-            reply = f"✅ OTP verified! You are associated with multiple flats. Please reply with the number of the flat you want to select:\n\n{options}"
+            reply = f"✅ OTP verified! You are associated with multiple flats. Please reply with the number of the flat you want to select:\n\n{options_str}"
             self._update_history(session_id, user_message, reply)
             return reply
             
@@ -439,12 +434,23 @@ class HomefyChatbot:
 
         intent = self._detect_intent(user_message)
 
+        # ── Complaint Form Shortcut ───────────────────────────────────────────
+        if intent == "complaints" and self._is_write_request(user_message):
+            if not user_token:
+                self.session_states[session_id] = {"state": "awaiting_phone"}
+                reply = "🔒 You need to be logged in to raise a complaint.\n\nPlease enter your 10-digit phone number to get started."
+                self._update_history(session_id, user_message, reply)
+                return reply
+            reply = "__COMPLAINT_FORM_MARKER__"
+            self._update_history(session_id, user_message, "I've opened the complaint form for you. Please fill in the details and submit.")
+            return reply
 
         # ── Normal Chat Flow ──────────────────────────────────────────────────
         api_context = ""
         if intent != "general":
             if not user_token:
-                reply = "🔒 You need to be logged in to view your personalized information.\n\nPlease type **login** followed by your 10-digit phone number (e.g., `login 9876543210`) to get started."
+                self.session_states[session_id] = {"state": "awaiting_phone"}
+                reply = "🔒 You need to be logged in to view your personalized information.\n\nPlease enter your 10-digit phone number to get started."
                 self._update_history(session_id, user_message, reply)
                 return reply
                 
@@ -519,17 +525,7 @@ class HomefyChatbot:
                     return reply_text
 
             # ── Execute the single valid tool call ─────────────────────
-            if function_name == "create_complaint":
-                res = self.api_handler.create_complaint(
-                    token=user_token,
-                    title=args.get("title"),
-                    description=args.get("description"),
-                    category_id=args.get("category_id"),
-                    type_filter=args.get("type", "PERSONAL"),
-                    location=args.get("location", ""),
-                    is_urgent=args.get("is_urgent", False)
-                )
-            elif function_name == "create_amenity_booking":
+            if function_name == "create_amenity_booking":
                 res = self.api_handler.create_amenity_booking(
                     token=user_token,
                     amenity_id=args.get("amenity_id"),
