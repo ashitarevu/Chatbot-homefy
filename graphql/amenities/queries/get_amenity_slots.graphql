@@ -1,0 +1,18 @@
+query Amenity($amenityId: ID!, $startDate: DateTime!, $endDate: DateTime!) {
+  amenity(id: $amenityId) {
+    id
+    bookingMode
+    minBooking
+    maxBooking
+    maxCapacityPerBooking
+    paymentType
+    slots(startDate: $startDate, endDate: $endDate) {
+      id
+      status
+      startTime
+      endTime
+      currentBookings
+      rejectReason
+    }
+  }
+}

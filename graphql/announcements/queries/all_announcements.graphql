@@ -1,0 +1,16 @@
+query AllAnnouncements($filter: AnnouncementFilterInput!) {
+  allAnnouncements(filter: $filter) {
+    data {
+      id
+      title
+      description
+      type
+      announcementCategory {
+        name
+      }
+      createdAt
+      isRead
+    }
+    hasNext
+  }
+}

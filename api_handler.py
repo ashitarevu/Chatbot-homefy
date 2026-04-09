@@ -27,13 +27,11 @@ class HomefyAPIHandler:
         self._query_cache = {}
 
     def _load_gql(self, filepath: str) -> str:
-        """Helper to read .graphql files from disk, with a small memory cache."""
-        if filepath not in self._query_cache:
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            full_path = os.path.join(base_dir, filepath)
-            with open(full_path, "r", encoding="utf-8") as f:
-                self._query_cache[filepath] = f.read()
-        return self._query_cache[filepath]
+        """Helper to read .graphql files from disk."""
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        full_path = os.path.join(base_dir, filepath)
+        with open(full_path, "r", encoding="utf-8") as f:
+            return f.read()
 
     # ── Low-level helpers ─────────────────────────────────────────────────────
     def _headers(self, token: str) -> dict:
@@ -56,18 +54,24 @@ class HomefyAPIHandler:
             resp.raise_for_status()
             result = resp.json()
             if "errors" in result:
+                print(f"[GRAPHQL ERRORS]: {result['errors']}")
+                with open("last_graphql_error.txt", "w") as f:
+                    f.write(json.dumps(result['errors'], indent=2))
                 return {"error": result["errors"]}
             return result.get("data", {})
         except requests.exceptions.RequestException as e:
             error_msg = str(e)
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 try:
-                    err_data = e.response.json()
-                    error_msg = f"{e} - {json.dumps(err_data)}"
+                    error_msg += f" - {e.response.json()}"
                 except Exception:
                     error_msg = f"{e} - {e.response.text}"
+            print(f"[GRAPHQL HTTP ERROR]: {error_msg}")
+            with open("last_graphql_error.txt", "w") as f:
+                f.write(error_msg)
             return {"error": error_msg}
         except Exception as e:
+            print(f"[GRAPHQL EXCEPTION]: {e}")
             return {"error": str(e)}
 
     def execute_rest(self, method: str, path: str, token: str = "", **kwargs) -> dict:
@@ -128,11 +132,11 @@ class HomefyAPIHandler:
     # ── GraphQL queries ───────────────────────────────────────────────────────
 
     def _q_my_bookings(self, token):
-        q = self._load_gql("graphql/community/queries/my_bookings.graphql")
+        q = self._load_gql("graphql/amenities/queries/all_bookings.graphql")
         try:
-            res = self.execute_graphql(q, {}, token)
+            res = self.execute_graphql(q, {"filter": {}}, token)
             # Inject receipt URLs so the LLM can surface them to the user
-            bookings_data = res.get("myBookings", {})
+            bookings_data = res.get("allBookings", {})
             if isinstance(bookings_data, dict) and bookings_data.get("data"):
                 for booking in bookings_data["data"]:
                     b_id = booking.get("id")
@@ -143,7 +147,7 @@ class HomefyAPIHandler:
             return f"[My Amenity Bookings]: unavailable ({e})"
     def get_amenity_slots(self, token: str, amenity_id: str, start_date: str, end_date: str) -> dict:
         try:
-            q = self._load_gql("graphql/community/queries/get_amenity_slots.graphql")
+            q = self._load_gql("graphql/amenities/queries/get_amenity_slots.graphql")
             variables = {
                 "amenityId": amenity_id,
                 "startDate": start_date,
@@ -153,13 +157,57 @@ class HomefyAPIHandler:
             if "error" in data:
                 return {"status": "error", "message": f"Failed to get slots: {data['error']}"}
             amenity = data.get("amenity", {})
-            return {"status": "success", "slots": amenity.get("slots", [])}
+            return {"status": "success", "amenity": amenity, "slots": amenity.get("slots", [])}
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
-    def _q_all_amenities(self, token):
-        q = self._load_gql("graphql/community/queries/all_amenities.graphql")
-        return self._fmt(self.execute_graphql(q, {}, token), "Available Amenities")
+    def _q_all_amenities(self, token, apartment_id: str = ""):
+        q = self._load_gql("graphql/amenities/queries/all_amenities.graphql")
+        variables = {"filter": {}}
+        data = self.execute_graphql(q, variables, token)
+        
+        # Format the data cleanly so the LLM does not get overwhelmed by giant JSON blocks or pagination info
+        if "allAmenities" in data and isinstance(data["allAmenities"], dict):
+            items = data["allAmenities"].get("data", [])
+            lines = []
+            for a in items:
+                lines.append(f"  - Amenity ID: {a.get('id')} | Name: {a.get('name')} | Location: {a.get('location', 'N/A')}")
+            
+            if lines:
+                return "[Available Amenities (List)]:\n" + "\n".join(lines) + "\n"
+            else:
+                return "[Available Amenities]: No amenities found currently.\n"
+                
+        return self._fmt(data, "Available Amenities")
+
+    def get_all_amenities_raw(self, token: str, apartment_id: str = "") -> list:
+        try:
+            q = self._load_gql("graphql/amenities/queries/all_amenities.graphql")
+            variables = {"filter": {}}
+            data = self.execute_graphql(q, variables, token)
+            if "error" in data:
+                return []
+            amenities_obj = data.get("allAmenities")
+            if not isinstance(amenities_obj, dict):
+                return []
+            return amenities_obj.get("data", [])
+        except Exception as e:
+            print(f"[AMENITY RAW FILTER] Exception: {e}")
+            return []
+
+    def get_amenity_categories_raw(self, token: str) -> list:
+        """Fetch amenity categories (Kids & Family, Sports & Fitness, etc.)"""
+        try:
+            q = self._load_gql("graphql/amenities/queries/get_amenity_categories.graphql")
+            data = self.execute_graphql(q, {"filter": {}}, token)
+            if "error" in data:
+                return []
+            cats = data.get("allCategories")
+            if isinstance(cats, dict):
+                return cats.get("data", [])
+            return []
+        except Exception:
+            return []
 
     # Hardcoded fallback categories (in case the staging API is unstable)
     FALLBACK_CATEGORIES = [
@@ -257,7 +305,7 @@ class HomefyAPIHandler:
 
     def create_amenity_booking(self, token: str, amenity_id: str, slot_ids: list, flat_id: str = "") -> dict:
         try:
-            q = self._load_gql("graphql/community/mutations/create_amenity_booking.graphql")
+            q = self._load_gql("graphql/amenities/mutations/create_amenity_booking.graphql")
             variables = {
                 "data": {
                     "amenityId": amenity_id,
@@ -283,9 +331,22 @@ class HomefyAPIHandler:
         q = self._load_gql("graphql/community/queries/all_entries_by_date.graphql")
         return self._fmt(self.execute_graphql(q, {}, token), "Visitor Entries Today")
 
-    def _q_all_announcements(self, token):
-        q = self._load_gql("graphql/community/queries/all_announcements.graphql")
-        return self._fmt(self.execute_graphql(q, {}, token), "Announcements")
+    def _q_all_announcements(self, token, unread_only=False):
+        q = self._load_gql("graphql/announcements/queries/all_announcements.graphql")
+        filter_vars = {}
+        if unread_only:
+            filter_vars["getUnread"] = True
+        return self._fmt(self.execute_graphql(q, {"filter": filter_vars}, token), "Unread Announcements" if unread_only else "Announcements")
+
+    def _q_get_detailed_announcement(self, token, announcement_id):
+        try:
+            q = self._load_gql("graphql/announcements/queries/get_detailed_announcement.graphql")
+            data = self.execute_graphql(q, {"announcementId": announcement_id}, token)
+            if "error" in data:
+                return {"error": data["error"]}
+            return data.get("announcement", {})
+        except Exception as e:
+            return {"error": str(e)}
 
     def _q_vehicles(self, token, role):
         if role in ["OWNER", "TENANT", "OWNER_FAMILY", "RESIDENT"]:
@@ -294,6 +355,16 @@ class HomefyAPIHandler:
         else:
             q = self._load_gql("graphql/community/queries/all_vehicles.graphql")
             return self._fmt(self.execute_graphql(q, {}, token), "All Community Vehicles")
+
+    def _q_parking_categories(self, token):
+        try:
+            q = self._load_gql("graphql/parking/queries/all_parking_categories.graphql")
+            data = self.execute_graphql(q, {"filter": {}}, token)
+            if "error" in data:
+                return "[Parking Categories]: unavailable"
+            return self._fmt(data, "Parking Categories")
+        except Exception as e:
+            return f"[Parking Categories]: unavailable ({e})"
 
     def _q_helpers(self, token, role):
         if role in ["OWNER", "TENANT", "OWNER_FAMILY", "RESIDENT"]:
@@ -322,6 +393,76 @@ class HomefyAPIHandler:
     def _q_all_polls(self, token):
         q = self._load_gql("graphql/community/queries/all_polls.graphql")
         return self._fmt(self.execute_graphql(q, {}, token), "Active Polls")
+
+    def create_amenity_booking(self, token: str, amenity_id: str, slot_ids: list, flat_id: str = "") -> dict:
+        """Create an amenity booking via GraphQL mutation."""
+        try:
+            q = self._load_gql("graphql/amenities/mutations/create_amenity_booking.graphql")
+            variables = {
+                "data": {
+                    "amenityId": amenity_id,
+                    "slotIds": slot_ids,
+                }
+            }
+            if flat_id:
+                variables["data"]["flatId"] = flat_id
+            
+            print(f"\n[BOOKING] Sending mutation with variables: {json.dumps(variables, indent=2)}")
+            raw = self.execute_graphql(q, variables, token)
+            print(f"[BOOKING] Raw GraphQL response: {json.dumps(raw, indent=2, default=str)}")
+            
+            if "error" in raw:
+                return {"status": "error", "message": str(raw["error"])}
+            
+            booking = raw.get("createAmenityBooking")
+            
+            # If booking is None or empty, the mutation silently failed on the server
+            if not booking:
+                return {
+                    "status": "error",
+                    "message": "Booking was not created. The server rejected the request (no booking returned). Check amenity_id, slot_ids, and flat_id are correct."
+                }
+            
+            return {
+                "status": "success",
+                "booking": booking,
+                "message": f"Booking confirmed! ID: {booking.get('id', 'N/A')}, Status: {booking.get('status', 'PENDING')}"
+            }
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+    def get_blocks_and_flats(self, token: str) -> dict:
+        """Return blocks and their flats from the user's apartment (parsed from myApartments)."""
+        try:
+            apts = self.get_my_apartments(token)
+            apt_list = apts.get("myApartments", [])
+            if not apt_list:
+                return {"blocks": []}
+
+            # Use the first apartment (the one currently logged in to)
+            apt = apt_list[0]
+            requests_list = apt.get("requests", [])
+
+            blocks_map = {}
+            for req in requests_list:
+                flat = req.get("flat") or {}
+                block = flat.get("block") or {}
+                block_name = block.get("blockName", "")
+                flat_number = flat.get("flatNumber", "")
+                flat_id = flat.get("id", req.get("id", ""))  # fall back to request id if flat id missing
+                if block_name:
+                    if block_name not in blocks_map:
+                        blocks_map[block_name] = []
+                    blocks_map[block_name].append({
+                        "flatNumber": flat_number,
+                        "flatId": flat_id,
+                        "requestId": req.get("id", "")
+                    })
+
+            blocks = [{"blockName": b, "flats": f} for b, f in sorted(blocks_map.items())]
+            return {"blocks": blocks}
+        except Exception as e:
+            return {"blocks": [], "error": str(e)}
 
     def _q_family_members(self, token, role):
         if role in ["OWNER", "TENANT", "OWNER_FAMILY", "RESIDENT"]:
@@ -364,7 +505,7 @@ class HomefyAPIHandler:
         return self._fmt(data, "My Ads")
 
     # ── Intent → API chain map ────────────────────────────────────────────────
-    def call_apis_in_sequence(self, intent: str, user_token: str, role: str = "RESIDENT") -> str:
+    def call_apis_in_sequence(self, intent: str, user_token: str, role: str = "RESIDENT", user_message: str = "", apartment_id: str = "") -> str:
         """
         Given an intent string, call the relevant Homefy APIs in sequence
         and return a combined context string for the AI prompt.
@@ -390,12 +531,31 @@ class HomefyAPIHandler:
                 comm = self._q_all_complaints(token, "COMMUNITY")
                 pers = self._q_all_complaints(token, "PERSONAL")
                 context_parts.append(self._fmt({"COMMUNITY": comm, "PERSONAL": pers}, "All Complaints"))
+
+                import re
+                comp_match = re.search(r'COM-[a-zA-Z]+-\d+', user_message)
+                if comp_match:
+                    comp_id = comp_match.group(0).upper()
+                    detail = self._q_get_detailed_complaint(token, comp_id)
+                    context_parts.append(self._fmt(detail, f"Detailed Complaint {comp_id}"))
+
             except Exception as e:
                 context_parts.append(f"[Complaints]: unavailable ({e})")
 
         elif intent == "amenities":
-            context_parts.append(self._q_all_amenities(token))
+            context_parts.append(self._q_all_amenities(token, apartment_id=apartment_id))
             context_parts.append(self._q_my_bookings(token))
+            
+            import re
+            am_match = re.search(r'\b(cm[a-z0-9]{20,})\b', user_message, re.IGNORECASE)
+            if am_match:
+                am_id = am_match.group(1).lower()
+                from datetime import datetime, timezone, timedelta
+                now = datetime.now(timezone.utc)
+                start_date = now.strftime("%Y-%m-%dT00:00:00.000Z")
+                end_date = (now + timedelta(days=2)).strftime("%Y-%m-%dT23:59:59.000Z")
+                slots_data = self.get_amenity_slots(token, am_id, start_date, end_date)
+                context_parts.append(self._fmt(slots_data, f"Detailed Slots for Amenity {am_id} (Next 48 Hours)"))
 
         elif intent == "bills":
             context_parts.append(self._q_my_bills(token))
@@ -404,10 +564,18 @@ class HomefyAPIHandler:
             context_parts.append(self._q_all_entries_by_date(token))
 
         elif intent == "announcements":
-            context_parts.append(self._q_all_announcements(token))
+            unread_only = "unread" in user_message.lower()
+            context_parts.append(self._q_all_announcements(token, unread_only=unread_only))
+            import re
+            ann_match = re.search(r'\b(cm[a-z0-9]{20,})\b', user_message, re.IGNORECASE)
+            if ann_match:
+                ann_id = ann_match.group(1).lower()
+                detail = self._q_get_detailed_announcement(token, ann_id)
+                context_parts.append(self._fmt(detail, f"Detailed Announcement {ann_id}"))
 
         elif intent == "vehicles":
             context_parts.append(self._q_vehicles(token, role))
+            context_parts.append(self._q_parking_categories(token))
 
         elif intent == "helpers":
             context_parts.append(self._q_helpers(token, role))

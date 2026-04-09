@@ -1,0 +1,23 @@
+query GetAnnouncementDetail($announcementId: String!) {
+  announcement(id: $announcementId) {
+    id
+    title
+    description
+    isRead
+    type
+    attachments {
+      fileName
+      id
+      mime
+      url
+    }
+    meeting {
+      startTime
+      location
+    }
+    announcementCategory {
+      name
+    }
+    createdAt
+  }
+}

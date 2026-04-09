@@ -7,8 +7,10 @@ query GetMyApartments {
       accessType
       accessStatus
       flat {
+        id
         flatNumber
         block {
+          id
           blockName
         }
       }

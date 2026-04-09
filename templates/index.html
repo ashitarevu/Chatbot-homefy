@@ -52,7 +52,8 @@
         <p>I can help you with bookings, complaints, visitors, bills, and much more.</p>
         <div class="quick-chips">
           <button class="chip" onclick="sendQuick('I want to raise a complaint')">📝 Raise a Complaint</button>
-          <button class="chip" onclick="sendQuick('Show my amenity bookings')">🏊 Amenity Bookings</button>
+          <button class="chip" onclick="sendQuick('I want to book an amenity')">🏊 Book Amenity</button>
+          <button class="chip" onclick="sendQuick('Show my amenity bookings')">📅 My Bookings</button>
           <button class="chip" onclick="sendQuick('Show my complaints')">📋 My Complaints</button>
           <button class="chip" onclick="sendQuick('Show my bills')">💳 My Bills</button>
           <button class="chip" onclick="sendQuick('Show today visitors')">🚶 Visitors Today</button>
@@ -135,6 +136,32 @@
         renderComplaintForm();
         return;
       }
+      // ── Amenity Form Detection ──────────────────────────────────
+      if (role === 'bot' && text.trim() === '__AMENITY_FORM_MARKER__') {
+        renderAmenityForm();
+        return;
+      }
+      // ── Apartment Selection Detection ──────────────────────────────────
+      if (role === 'bot' && text.startsWith('__APARTMENT_SELECTION_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.split('|')[1]);
+          renderApartmentSelection(payload);
+        } catch (e) {
+          console.error("Failed to parse apartment selection marker", e);
+        }
+        return;
+      }
+      
+      // ── Flat Selection Detection ──────────────────────────────────
+      if (role === 'bot' && text.startsWith('__FLAT_SELECTION_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.split('|')[1]);
+          renderFlatSelection(payload);
+        } catch (e) {
+          console.error("Failed to parse flat selection marker", e);
+        }
+        return;
+      }
 
       const row = document.createElement('div');
       row.className = `msg-row ${role}`;
@@ -191,10 +218,138 @@
       statusText.style.color = color || '';
     }
 
+    // ── Apartment Selection Form Logic ──────────────────────────────────────
+    function renderApartmentSelection(apartments) {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.textContent = '🏠';
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.style.width = '100%';
+      
+      const title = document.createElement('p');
+      title.innerHTML = '<strong>✅ OTP verified!</strong><br/>You are associated with multiple apartments. Please select your apartment to continue:';
+      title.style.marginBottom = '12px';
+      bubble.appendChild(title);
+
+      const chipsContainer = document.createElement('div');
+      chipsContainer.className = 'quick-chips';
+      chipsContainer.style.marginTop = '0';
+      chipsContainer.style.gap = '8px';
+      
+      apartments.forEach(apt => {
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.innerHTML = `🏢 ${apt.label}`;
+        btn.onclick = () => {
+          const allChips = chipsContainer.querySelectorAll('.chip');
+          allChips.forEach(c => c.disabled = true);
+          // Pass the friendly label for the UI, but the apt.id for the backend
+          sendMessage(apt.label, apt.id);
+        };
+        chipsContainer.appendChild(btn);
+      });
+
+      bubble.appendChild(chipsContainer);
+      inner.appendChild(bubble);
+
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+
+      row.appendChild(inner);
+
+      row.style.opacity = '0';
+      row.style.transform = 'translateY(12px)';
+      chatBody.appendChild(row);
+
+      requestAnimationFrame(() => {
+        row.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      });
+
+      scrollToBottom();
+    }
+
+    // ── Flat Selection Form Logic ──────────────────────────────────────────
+    function renderFlatSelection(flats) {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.textContent = '🏠';
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.style.width = '100%';
+      
+      const title = document.createElement('p');
+      title.innerHTML = '<strong>Please select your flat to continue:</strong>';
+      title.style.marginBottom = '12px';
+      bubble.appendChild(title);
+
+      const chipsContainer = document.createElement('div');
+      chipsContainer.className = 'quick-chips';
+      chipsContainer.style.marginTop = '0';
+      chipsContainer.style.gap = '8px';
+      
+      flats.forEach(flat => {
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.innerHTML = `🏢 ${flat.label} <span style="opacity:0.7;font-size:0.85em">(${flat.role})</span>`;
+        btn.onclick = () => {
+          const allChips = chipsContainer.querySelectorAll('.chip');
+          allChips.forEach(c => c.disabled = true);
+          // Pass the friendly label for the UI, but the flat.id for the backend
+          sendMessage(flat.label, flat.id);
+        };
+        chipsContainer.appendChild(btn);
+      });
+
+      bubble.appendChild(chipsContainer);
+      inner.appendChild(bubble);
+
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+
+      row.appendChild(inner);
+
+      row.style.opacity = '0';
+      row.style.transform = 'translateY(12px)';
+      chatBody.appendChild(row);
+
+      requestAnimationFrame(() => {
+        row.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      });
+
+      scrollToBottom();
+    }
+
     // ── Send message ───────────────────────────────────────────────────────
-    async function sendMessage(text) {
-      const msg = (text || userInput.value).trim();
-      if (!msg || isSending) return;
+    async function sendMessage(text, hiddenPayload) {
+      const displayMsg = (text || userInput.value).trim();
+      const sendMsg = hiddenPayload || displayMsg;
+      
+      if (!displayMsg || isSending) return;
 
       isSending = true;
       userInput.value = '';
@@ -202,7 +357,7 @@
       sendBtn.disabled = true;
       hideWelcome();
 
-      appendMessage('user', msg);
+      appendMessage('user', displayMsg);
 
       // Show typing indicator
       typingRow.style.display = 'flex';
@@ -215,7 +370,7 @@
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
-            message: msg,
+            message: sendMsg,
             session_id: sessionId,
           })
         });
@@ -479,7 +634,339 @@
       }
     }
 
+    // ── Amenity Booking Form Logic ────────────────────────────────────
+    function renderAmenityForm() {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.id = 'amenityFormRow';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.textContent = '🏠';
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      inner.style.maxWidth = '92%';
+
+      const card = document.createElement('div');
+      card.className = 'complaint-form-card';
+      card.innerHTML = `
+        <div class="complaint-form-header">
+          <span class="form-icon">🏊</span>
+          <span>Book an Amenity</span>
+        </div>
+        <div class="complaint-form-body">
+
+          <!-- Category removed to display all amenities instantly -->
+
+          <div class="cform-group" id="afgAmenity">
+            <label class="cform-label">Amenity <span class="required">*</span></label>
+            <select class="cform-select" id="afAmenity" onchange="loadAmenitySlots()">
+              <option value="" disabled selected>Loading amenities...</option>
+            </select>
+            <div class="cform-error">Please select an amenity</div>
+          </div>
+
+          <div class="cform-group" id="afgDate">
+            <label class="cform-label">Date <span class="required">*</span></label>
+            <input type="date" class="cform-input" id="afDate" onchange="loadAmenitySlots()" min="${new Date().toISOString().split('T')[0]}" />
+            <div class="cform-error">Please select a date</div>
+          </div>
+
+          <div class="cform-group" id="afgSlots" style="display:none">
+            <label class="cform-label">Available Slots <span class="required">*</span></label>
+            <div id="afSlotsContainer" class="slots-grid"></div>
+            <div class="cform-error">Please select at least one slot</div>
+          </div>
+
+          <div id="afLoadingSlots" style="display:none;color:var(--muted);font-size:13px;padding:8px 0">⏳ Loading available slots...</div>
+          <div id="afNoSlots" style="display:none;color:#f87171;font-size:13px;padding:8px 0">❌ No slots available for this date.</div>
+
+          <div class="cform-actions">
+            <button class="cform-cancel" onclick="cancelAmenityForm()">Cancel</button>
+          </div>
+
+        </div>
+      `;
+
+      inner.appendChild(card);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+
+      row.style.opacity = '0';
+      row.style.transform = 'translateY(12px)';
+      chatBody.appendChild(row);
+      requestAnimationFrame(() => {
+        row.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      });
+      scrollToBottom();
+      loadAmenityData();
+    }
+
+
+    // ── Booking state ─────────────────────────────────────────────────
+    let _allAmenities = [];
+    let _selectedSlotId = null;
+    let _selectedAmenityId = null;
+    let _blocksData = [];
+
+    async function loadAmenityData() {
+      const amenSel = document.getElementById('afAmenity');
+      if (!amenSel) return;
+      try {
+        const amenRes = await fetch(`/api/amenities/list?session_id=${encodeURIComponent(sessionId)}`);
+        const amenData = await amenRes.json();
+
+        _allAmenities = amenData.amenities || [];
+
+        amenSel.innerHTML = '<option value="" disabled selected>Select an amenity...</option>';
+        _allAmenities.forEach(a => {
+          const opt = document.createElement('option');
+          opt.value = a.id;
+          opt.textContent = a.name + (a.location ? ` (${a.location})` : '');
+          amenSel.appendChild(opt);
+        });
+      } catch {
+        amenSel.innerHTML = '<option value="" disabled selected>Failed to load</option>';
+      }
+    }
+
+    // ── Slot click → Block/Flat modal ────────────────────────────────
+    function openBlockFlatModal(slotId, amenityId) {
+      _selectedSlotId = slotId;
+      _selectedAmenityId = amenityId;
+      document.getElementById('bfModal').style.display = 'flex';
+      const blockSel = document.getElementById('bfBlockSel');
+      const flatSel = document.getElementById('bfFlatSel');
+      blockSel.innerHTML = '<option value="" disabled selected>Loading blocks...</option>';
+      flatSel.innerHTML = '<option value="" disabled selected>Select block first...</option>';
+      flatSel.disabled = true;
+      document.getElementById('bfNextBtn').disabled = true;
+
+      fetch(`/api/apartment/blocks-flats?session_id=${encodeURIComponent(sessionId)}`)
+        .then(r => r.json())
+        .then(data => {
+          _blocksData = data.blocks || [];
+          blockSel.innerHTML = '<option value="" disabled selected>Select block...</option>';
+          _blocksData.forEach((b, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = b.blockName;
+            blockSel.appendChild(opt);
+          });
+        })
+        .catch(() => {
+          blockSel.innerHTML = '<option value="" disabled selected>Failed to load</option>';
+        });
+    }
+
+    function onBlockChange() {
+      const blockSel = document.getElementById('bfBlockSel');
+      const flatSel = document.getElementById('bfFlatSel');
+      const idx = blockSel.value;
+      document.getElementById('bfNextBtn').disabled = true;
+      if (idx === '' || !_blocksData.length) return;
+      const block = _blocksData[parseInt(idx)];
+      flatSel.innerHTML = '<option value="" disabled selected>Select flat...</option>';
+      (block.flats || []).forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.flatId || f.requestId;
+        opt.textContent = f.flatNumber || '(unknown)';
+        flatSel.appendChild(opt);
+      });
+      flatSel.disabled = false;
+    }
+
+    function onFlatChange() {
+      const flatSel = document.getElementById('bfFlatSel');
+      document.getElementById('bfNextBtn').disabled = !flatSel.value;
+    }
+
+    function closeBlockFlatModal() {
+      document.getElementById('bfModal').style.display = 'none';
+    }
+
+    function proceedToConfirm() {
+      const flatSel = document.getElementById('bfFlatSel');
+      if (!flatSel.value) return;
+      document.getElementById('bfModal').style.display = 'none';
+      document.getElementById('confirmModal').style.display = 'flex';
+      document.getElementById('confirmModal').dataset.flatId = flatSel.value;
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirmModal').style.display = 'none';
+      document.getElementById('bfModal').style.display = 'flex';
+    }
+
+    function cancelBookingFlow() {
+      document.getElementById('confirmModal').style.display = 'none';
+      document.getElementById('bfModal').style.display = 'none';
+    }
+
+    async function confirmBooking() {
+      const flatId = document.getElementById('confirmModal').dataset.flatId || '';
+      const confirmBtn = document.getElementById('confirmYesBtn');
+      confirmBtn.textContent = 'Booking...';
+      confirmBtn.disabled = true;
+      try {
+        const res = await fetch('/api/amenities/book', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            session_id: sessionId,
+            amenity_id: _selectedAmenityId,
+            slot_ids: [_selectedSlotId],
+            flat_id: flatId
+          })
+        });
+        const data = await res.json();
+        document.getElementById('confirmModal').style.display = 'none';
+        const formRow = document.getElementById('amenityFormRow');
+        if (formRow) formRow.remove();
+        if (data.status === 'success') {
+          appendMessage('bot', `✅ **Amenity booked successfully!**\n\nYour booking is confirmed. You can view it in the Homefy app under **My Bookings**.`);
+        } else {
+          appendMessage('bot', `⚠️ ${data.message || data.error || 'Booking failed. Please try again.'}`);
+        }
+      } catch {
+        document.getElementById('confirmModal').style.display = 'none';
+        appendMessage('bot', '⚠️ Network error while booking. Please check your connection.');
+      } finally {
+        confirmBtn.textContent = 'Yes';
+        confirmBtn.disabled = false;
+      }
+    }
+
+
+
+
+    async function loadAmenitySlots() {
+      const amenityId = document.getElementById('afAmenity')?.value;
+      const dateVal = document.getElementById('afDate')?.value;
+      const slotsGroup = document.getElementById('afgSlots');
+      const slotsContainer = document.getElementById('afSlotsContainer');
+      const loadingEl = document.getElementById('afLoadingSlots');
+      const noSlotsEl = document.getElementById('afNoSlots');
+
+      if (!amenityId || !dateVal) return;
+
+      slotsGroup.style.display = 'none';
+      noSlotsEl.style.display = 'none';
+      loadingEl.style.display = 'block';
+      slotsContainer.innerHTML = '';
+
+      try {
+        const startDate = dateVal + 'T00:00:00Z';
+        const endDate = dateVal + 'T23:59:59Z';
+        const res = await fetch('/api/amenities/slots', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ session_id: sessionId, amenity_id: amenityId, start_date: startDate, end_date: endDate })
+        });
+        const data = await res.json();
+        loadingEl.style.display = 'none';
+        const slots = data.slots || [];
+        const available = slots.filter(s => s.status === 'AVAILABLE' || !s.status);
+
+        if (available.length === 0) {
+          noSlotsEl.style.display = 'block';
+          return;
+        }
+
+        slotsGroup.style.display = 'block';
+        available.forEach(slot => {
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'slot-chip';
+          const startTime = slot.startTime ? new Date(slot.startTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : slot.id;
+          const endTime = slot.endTime ? new Date(slot.endTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
+          chip.innerHTML = `<span>${startTime}${endTime ? ' – ' + endTime : ''}</span>`;
+          chip.onclick = () => {
+            document.querySelectorAll('.slot-chip').forEach(c => c.classList.remove('selected'));
+            chip.classList.add('selected');
+            openBlockFlatModal(slot.id, amenityId);
+          };
+          slotsContainer.appendChild(chip);
+        });
+
+      } catch {
+        loadingEl.style.display = 'none';
+        noSlotsEl.style.display = 'block';
+        noSlotsEl.textContent = '⚠️ Failed to load slots. Please try again.';
+      }
+    }
+
+
+    function cancelAmenityForm() {
+      const formRow = document.getElementById('amenityFormRow');
+      if (formRow) {
+        formRow.style.transition = 'all 0.3s ease';
+        formRow.style.opacity = '0';
+        formRow.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+          formRow.remove();
+          appendMessage('bot', 'Booking cancelled. How else can I help you?');
+        }, 300);
+      }
+    }
+
     userInput.focus();
   </script>
+
+  <!-- ── Block/Flat Selection Modal ──────────────────────────────────── -->
+  <div id="bfModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--surface,#1e1e2e);border-radius:16px;padding:28px;width:min(440px,92vw);box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+        <h3 style="margin:0;font-size:1.1rem;font-weight:600;">Select Block and Flat</h3>
+        <button onclick="closeBlockFlatModal()" style="background:none;border:none;color:var(--muted,#888);font-size:1.4rem;cursor:pointer;line-height:1;">&times;</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+        <div>
+          <label style="font-size:12px;color:var(--muted,#888);display:block;margin-bottom:6px;">Block</label>
+          <select id="bfBlockSel" class="cform-select" onchange="onBlockChange()">
+            <option value="" disabled selected>Block</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;color:var(--muted,#888);display:block;margin-bottom:6px;">Flat</label>
+          <select id="bfFlatSel" class="cform-select" onchange="onFlatChange()" disabled>
+            <option value="" disabled selected>Flat</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button onclick="closeBlockFlatModal()" class="cform-cancel" style="margin:0;">Cancel</button>
+        <button id="bfNextBtn" onclick="proceedToConfirm()" class="cform-submit" style="margin:0;padding:10px 24px;" disabled>
+          <span class="btn-text">Next</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Confirm Booking Modal ───────────────────────────────────────── -->
+  <div id="confirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1001;align-items:center;justify-content:center;">
+    <div style="background:var(--surface,#1e1e2e);border-radius:16px;padding:28px;width:min(380px,92vw);box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;font-size:1.1rem;font-weight:600;">Confirm Booking</h3>
+        <button onclick="cancelBookingFlow()" style="background:none;border:none;color:var(--muted,#888);font-size:1.4rem;cursor:pointer;line-height:1;">&times;</button>
+      </div>
+      <p style="margin:0 0 24px;color:var(--muted,#aaa);font-size:0.95rem;">Are you sure you want to book this slot?</p>
+      <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <button onclick="cancelBookingFlow()" class="cform-cancel" style="margin:0;">Cancel</button>
+        <button onclick="closeConfirmModal()" class="cform-cancel" style="margin:0;">Prev</button>
+        <button id="confirmYesBtn" onclick="confirmBooking()" class="cform-submit" style="margin:0;padding:10px 24px;">
+          <span class="btn-text">Yes</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

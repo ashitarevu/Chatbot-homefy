@@ -1,0 +1,19 @@
+query AllParkingCategories($filter: ParkingCategoryFilterInput) {
+  allParkingCategories(filter: $filter) {
+    count
+    data {
+      id
+      name
+      type
+      minBooking
+      maxBooking
+      scheduleType
+      paymentType
+      basePrice
+      availableCount
+      occupiedCount
+      totalCount
+    }
+    hasNext
+  }
+}

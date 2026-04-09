@@ -1,0 +1,15 @@
+query AllAmenities($filter: FilterAmenityInput) {
+  allAmenities(filter: $filter) {
+    hasNext
+    count
+    data {
+      id
+      name
+      location
+      status
+      description
+      bookingType
+      scheduleType
+    }
+  }
+}

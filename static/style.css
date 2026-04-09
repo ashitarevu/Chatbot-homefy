@@ -562,6 +562,40 @@ textarea::placeholder { color: var(--muted); }
   border-color: #f87171;
 }
 
+/* ── Slot selection grid (Amenity Booking) ────────────────────── */
+.slots-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.slot-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.slot-chip:hover {
+  background: rgba(124,92,252,0.1);
+  border-color: rgba(124,92,252,0.4);
+}
+
+.slot-chip.selected {
+  background: rgba(124,92,252,0.18);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 12px var(--accent-glow);
+}
+
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .chat-wrapper { max-width: 100%; border: none; }
@@ -572,4 +606,6 @@ textarea::placeholder { color: var(--muted); }
   .complaint-form-body { padding: 12px 14px 16px; }
   .cform-radio-group { gap: 6px; }
   .cform-radio { padding: 6px 12px; font-size: 12px; }
+  .slots-grid { gap: 6px; }
+  .slot-chip { font-size: 12px; padding: 6px 10px; }
 }

@@ -1,0 +1,40 @@
+query AllBookings($filter: FilterAmenityBookingInput) {
+  allBookings(filter: $filter) {
+    count
+    data {
+      id
+      status
+      flat {
+        flatNumber
+        block {
+          blockName
+        }
+      }
+      createdBy {
+        user {
+          firstName
+        }
+      }
+      order {
+        totalAmount
+      }
+      createdAt
+      slot {
+        startTime
+        endTime
+        date
+      }
+      amenity {
+        name
+      }
+      actualAmount
+      parking {
+        spaceNumber
+        parkingCategory {
+          name
+        }
+      }
+    }
+    hasNext
+  }
+}
