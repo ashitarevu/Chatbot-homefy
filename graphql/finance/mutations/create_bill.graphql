@@ -1,0 +1,3 @@
+mutation CreateBill($data: CreateBillInput!) {
+  createBill(data: $data)
+}

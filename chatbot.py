@@ -43,16 +43,17 @@ Reply exactly or similar to: "I'm Homefy Assistant. I can only help you with tas
 --- RESPONSE FORMATTING RULES ---
 1. NEVER use markdown tables. Always use numbered lists.
 2. For complaints, group them by type (Community / Personal) and show each as:
-   <number>. <CategoryName> (Status: <STATUS>, Urgent: <true/false>) - <ComplaintID>
+   <number>. <CategoryName> (Status: <STATUS>, Urgent: <true/false>) [Created By: <CreatorName>] - <ComplaintID>
    Example:
    **Community Complaints:**
-   1. Water (Status: PENDING, Urgent: true) - COM-IHA-0169
-   2. Plumbing (Status: WORK_IN_PROGRESS, Urgent: false) - COM-IHA-0167
+   1. Water (Status: PENDING, Urgent: true) [Created By: John Doe (Block A - 101)] - COM-IHA-0169
+   2. Plumbing (Status: WORK_IN_PROGRESS, Urgent: false) [Created By: Jane Smith (Flat 202)] - COM-IHA-0167
 3. After listing complaints, always suggest: "Would you like to: 1. Create a new complaint  2. View complaint details (please provide the complaint ID)"
 4. For announcements, always show the ID with each item and suggest: "Would you like to view announcement details? (please provide the ID)"
 5. For available amenities, output a human-readable list. You MUST strictly list ALL amenities returned in the data context without truncating or omitting any. Show ONLY the fields: Name and Location for each. Do not show raw JSON or extra descriptions. Always suggest: "Would you like to view available slots for this amenity? (please provide the Amenity ID or Name)"
 6. For your personal amenity bookings, show each as a numbered list with amenity name, date, time, and status.
-7. Keep all responses concise. No walls of text.
+7. For bills, group them by category (e.g. Rental, Electricity, Gas Bill). For each bill show: Bill ID, Amount (₹), Status, Due Date. Highlight ⚠️ OVERDUE bills prominently.
+8. Keep all responses concise. No walls of text.
 
 --- COMPLAINT CREATION FLOW ---
 If the user wants to raise/create/add a complaint, you MUST reply with exactly this special marker:
@@ -63,6 +64,11 @@ Do NOT ask for description, category, or any other details. Just reply precisely
 If the user wants to book, schedule, or reserve an amenity, you MUST reply with exactly this special marker:
 __AMENITY_FORM_MARKER__
 Do NOT ask for date, time, or any other details. Just reply precisely with that marker so the system can show the interactive form.
+
+--- BILL CREATION FLOW ---
+If the user wants to generate, create, or add a bill (Rental, Electricity, Maintenance, etc.), you MUST reply with exactly this special marker:
+__BILL_FORM_MARKER__
+Do NOT ask for amounts, categories, or flats. Just reply precisely with that marker so the system can show the interactive form.
 """
 
 # ── Model config ───────────────────────────────────────────────────────────────
@@ -90,7 +96,7 @@ class HomefyChatbot:
             api_key="ollama"
         )
         self.model_name = OLLAMA_MODEL
-        print(f"🤖  Using Ollama model: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
+        print(f"Using Ollama model: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
 
     # ── Session helpers ───────────────────────────────────────────────────────
     def _get_history(self, session_id: str) -> list[dict]:
@@ -102,10 +108,14 @@ class HomefyChatbot:
     # ── Intent detection ──────────────────────────────────────────────────────
     def _detect_intent(self, message: str) -> str:
         msg = message.lower()
-        if any(k in msg for k in ["booking", "book amenity", "pool", "gym", "clubhouse", "amenity"]):
+        if any(k in msg for k in ["booking", "book amenity", "pool", "gym", "clubhouse", "amenity", "amenities"]):
             return "amenities"
-        if any(k in msg for k in ["complaint", "complaints", "my complaints", "issues"]):
-            return "complaints" 
+        if "community_complaints_req" in msg or "community complaints" in msg:
+            return "community_complaints"
+        if "personal_complaints_req" in msg or "personal complaints" in msg:
+            return "personal_complaints"
+        if any(k in msg for k in ["complaint", "complaints", "my complaints", "issues", "complaints_menu"]):
+            return "complaints_menu" 
         if any(k in msg for k in ["bill", "payment", "pay", "due", "invoice"]):
             return "bills"
         if any(k in msg for k in ["visitor", "entry", "guest", "allowed in"]):
@@ -139,6 +149,16 @@ class HomefyChatbot:
     def _is_write_request(self, message: str) -> bool:
         """Detect if the user actually wants to CREATE/BOOK something, not just view data."""
         msg = message.lower()
+
+        # These phrases look like write-requests but are actually read requests — exclude them first
+        read_overrides = [
+            "show booking", "show my booking", "view booking", "my booking",
+            "see booking", "list booking", "all booking", "check booking",
+            "booking status", "bookings", "show amenity booking",
+        ]
+        if any(r in msg for r in read_overrides):
+            return False
+
         write_keywords = [
             "book", "create", "raise", "register", "add", "make a complaint",
             "file a complaint", "submit", "want to book", "schedule", "i want to raise",
@@ -197,11 +217,27 @@ class HomefyChatbot:
             self.sessions.pop(session_id, None) # Clear conversation history too
             return "You have been fully logged out of the chatbot session. To start a new session, you can type 'login' followed by your phone number."
             
-        # Trigger login flow (forcibly resets state if they type login again)
+        # Handle Role Choice — MUST be before the login trigger to avoid LOGIN_AS_ADMIN matching "login"
+        if current_state == "awaiting_role_choice":
+            chosen_role = user_message.strip()
+            is_admin = (chosen_role == "LOGIN_AS_ADMIN")
+            self.session_states[session_id] = {
+                "state": "awaiting_phone",
+                "login_as_admin": is_admin
+            }
+            role_label = "Admin" if is_admin else "User"
+            reply = f"Great! Logging in as **{role_label}**.\n\nPlease enter your 10-digit registered phone number."
+            self._update_history(session_id, user_message, reply)
+            return reply
+
+        # Trigger login flow — only fires in normal state to avoid false matches
         phone_candidates = ''.join(filter(str.isdigit, user_message))
-        if "login" in msg_lower or "sign in" in msg_lower or "authenticate" in msg_lower or (len(phone_candidates) == 10 and current_state == "normal" and not user_token):
+        if current_state == "normal" and (
+            "login" in msg_lower or "sign in" in msg_lower or "authenticate" in msg_lower
+            or (len(phone_candidates) == 10 and not user_token)
+        ):
             if len(phone_candidates) == 10:
-                # User provided phone number directly! e.g., "login 8897319627"
+                # User provided phone number directly after choosing role
                 import auth
                 res = auth.send_otp(phone_candidates)
                 if "error" in res:
@@ -210,7 +246,7 @@ class HomefyChatbot:
                 else:
                     token = res.get("result", {}).get("token") or res.get("token")
                     self.session_states[session_id] = {
-                        "state": "awaiting_otp", 
+                        "state": "awaiting_otp",
                         "phone": phone_candidates,
                         "temp_token": token
                     }
@@ -218,10 +254,16 @@ class HomefyChatbot:
                 self._update_history(session_id, user_message, reply)
                 return reply
             else:
-                self.session_states[session_id] = {"state": "awaiting_phone"}
-                reply = "Sure! To log you in, please enter your 10-digit registered phone number."
-                self._update_history(session_id, user_message, reply)
-                return reply
+                # Show role selection buttons first
+                options_json = [
+                    {"id": "LOGIN_AS_USER", "label": "👤 User"},
+                    {"id": "LOGIN_AS_ADMIN", "label": "🔑 Admin"}
+                ]
+                marker_str = f"__ROLE_SELECTION_MARKER__|{json.dumps(options_json)}"
+                self.session_states[session_id] = {"state": "awaiting_role_choice"}
+                self._update_history(session_id, user_message, "Are you logging in as a User or an Admin?")
+                return marker_str
+
                 
         # Handle Phone Number Input
         if current_state == "awaiting_phone":
@@ -231,6 +273,9 @@ class HomefyChatbot:
                 self._update_history(session_id, user_message, reply)
                 return reply
                 
+            # Preserve the login_as_admin flag across all state transitions
+            login_as_admin = state_data.get("login_as_admin", None)
+            
             # Send OTP
             import auth
             res = auth.send_otp(phone)
@@ -240,9 +285,10 @@ class HomefyChatbot:
             else:
                 token = res.get("result", {}).get("token") or res.get("token")
                 self.session_states[session_id] = {
-                    "state": "awaiting_otp", 
+                    "state": "awaiting_otp",
                     "phone": phone,
-                    "temp_token": token
+                    "temp_token": token,
+                    "login_as_admin": login_as_admin  # carry forward
                 }
                 reply = f"I've sent a 6-digit OTP to +91-{phone}. Please enter it here."
                 
@@ -282,59 +328,63 @@ class HomefyChatbot:
                 reply = "Login successful, but no apartments are registered to this phone number."
                 self._update_history(session_id, user_message, reply)
                 return reply
-                
+            
+            # Read the role flag carried forward from earlier states
+            login_as_admin = state_data.get("login_as_admin", None)
+            
             user_roles = ["OWNER", "OWNER_FAMILY", "TENANT"]
             admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
-            allowed_roles = user_roles + admin_roles
-            
+
+            # Only show APPROVED or ACTIVE requests — filter out REJECTED, PENDING, etc.
+            allowed_statuses = {"APPROVED", "ACTIVE"}
             valid_apts = []
             for apt in apts_list:
-                reqs = apt.get("requests", [])
-                valid_reqs = []
-                for req in reqs:
-                    if req.get("accessType", "") in allowed_roles:
-                        valid_reqs.append(req)
-                if valid_reqs:
-                    # Save local copy with only allowed flights
+                active_reqs = [
+                    r for r in apt.get("requests", [])
+                    if r.get("accessStatus", "").upper() in allowed_statuses
+                ]
+                if active_reqs:
                     apt_copy = apt.copy()
-                    apt_copy["requests"] = valid_reqs
+                    apt_copy["requests"] = active_reqs
                     valid_apts.append(apt_copy)
-                        
+
             if not valid_apts:
                 self.session_states[session_id] = {"state": "normal"}
-                reply = "Login successful, but you have no registered flats with valid access types."
+                reply = "Login successful, but no approved apartments are registered to this phone number."
                 self._update_history(session_id, user_message, reply)
                 return reply
 
-            # If multiple apartments, ask to choose apartment first
-            if len(valid_apts) > 1:
-                options_json = []
-                for i, apt in enumerate(valid_apts):
-                    options_json.append({
-                        "id": apt.get("id"),
-                        "label": apt.get("name", "Unknown Apartment")
-                    })
-                    
-                self.session_states[session_id] = {
-                    "state": "awaiting_apartment_choice",
-                    "valid_apts": valid_apts,
-                    "initial_token": initial_token,
-                    "user_roles_list": user_roles
-                }
-                
-                marker_str = f"__APARTMENT_SELECTION_MARKER__|{json.dumps(options_json)}"
-                self._update_history(session_id, user_message, "✅ OTP verified! Please select your apartment.")
-                return marker_str
 
-            # Only 1 apartment valid
-            chosen_apt = valid_apts[0]
-            return self._handle_flat_display(session_id, user_message, chosen_apt, initial_token, user_roles)
+            # ALWAYS show apartment selection so the user consciously picks which apartment
+            options_json = []
+            for apt in valid_apts:
+                options_json.append({
+                    "id": apt.get("id"),
+                    "label": apt.get("name", "Unknown Apartment")
+                })
+                
+            self.session_states[session_id] = {
+                "state": "awaiting_apartment_choice",
+                "valid_apts": valid_apts,
+                "initial_token": initial_token,
+                "login_as_admin": login_as_admin,  # carry forward
+                "user_roles_list": user_roles,
+                "admin_roles_list": admin_roles
+            }
+            
+            marker_str = f"__APARTMENT_SELECTION_MARKER__|{json.dumps(options_json)}"
+            self._update_history(session_id, user_message, "✅ OTP verified! Please select your apartment.")
+            return marker_str
+
+
             
         # Handle Apartment Selection
         if current_state == "awaiting_apartment_choice":
             msg_clean = user_message.strip()
             valid_apts = state_data.get("valid_apts", [])
             user_roles_list = state_data.get("user_roles_list", [])
+            login_as_admin = state_data.get("login_as_admin", None)  # read carried flag
+            initial_token = state_data.get("initial_token")
             
             chosen_apt = next((a for a in valid_apts if a.get("id") == msg_clean), None)
             
@@ -350,8 +400,32 @@ class HomefyChatbot:
                 reply = "Please select a valid apartment."
                 self._update_history(session_id, user_message, reply)
                 return reply
-                
-            return self._handle_flat_display(session_id, user_message, chosen_apt, state_data.get("initial_token"), user_roles_list)
+            
+            user_roles_list = state_data.get("user_roles_list", ["OWNER", "OWNER_FAMILY", "TENANT"])
+            admin_roles_list = state_data.get("admin_roles_list", ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"])
+
+            if login_as_admin:
+                # Admin: filter to admin-role requests in this apartment, pick the first one
+                admin_reqs = [r for r in chosen_apt.get("requests", []) if r.get("accessType", "") in admin_roles_list]
+                if not admin_reqs:
+                    reply = "No admin access found for this apartment. Please select another or contact support."
+                    self._update_history(session_id, user_message, reply)
+                    return reply
+                return self._finalize_login(session_id, user_message, chosen_apt, admin_reqs[0], initial_token)
+            else:
+                # User: filter to user-role requests (flats) and show them as buttons
+                user_reqs = [r for r in chosen_apt.get("requests", []) if r.get("accessType", "") in user_roles_list]
+                if not user_reqs:
+                    # Re-show apartment selection so they can try again
+                    options_json = [{"id": apt.get("id"), "label": apt.get("name", "Unknown Apartment")} for apt in valid_apts]
+                    marker_str = f"__APARTMENT_SELECTION_MARKER__|{json.dumps(options_json)}"
+                    self._update_history(session_id, user_message, "No user flats found. Please select another apartment.")
+                    reply = f"❌ You don't have **User** (Resident/Owner) access to **{chosen_apt.get('name', 'this apartment')}**.\n\nThis apartment only has Admin access for your account. Please go back and log in as **🔑 Admin** instead, or select a different apartment.\n\n" + marker_str
+                    return reply
+                apt_copy = chosen_apt.copy()
+                apt_copy["requests"] = user_reqs
+                return self._handle_flat_display(session_id, user_message, apt_copy, initial_token, user_roles_list)
+
             
         # Handle Flat Selection
         if current_state == "awaiting_flat_choice":
@@ -380,15 +454,20 @@ class HomefyChatbot:
 
         # ── Form Shortcuts ───────────────────────────────────────────
         if self._is_write_request(user_message):
-            if intent == "complaints":
+            if intent in ["complaints_menu", "community_complaints", "personal_complaints"]:
                 if not user_token:
                     self.session_states[session_id] = {"state": "awaiting_phone"}
                     reply = "🔒 You need to be logged in to raise a complaint.\n\nPlease enter your 10-digit phone number to get started."
                     self._update_history(session_id, user_message, reply)
                     return reply
-                reply = "__COMPLAINT_FORM_MARKER__"
+                user_role = getattr(self, "user_roles", {}).get(session_id, "")
+                admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
+                is_admin = user_role in admin_roles
+                
+                # We no longer block admins completely, we open the form and let the frontend hide the Personal option
+                marker_str = f"__COMPLAINT_FORM_MARKER__|{json.dumps({'isAdmin': is_admin})}"
                 self._update_history(session_id, user_message, "I've opened the complaint form for you. Please fill in the details and submit.")
-                return reply
+                return marker_str
                 
             elif intent == "amenities":
                 if not user_token:
@@ -399,8 +478,47 @@ class HomefyChatbot:
                 reply = "__AMENITY_FORM_MARKER__"
                 self._update_history(session_id, user_message, "I've opened the amenity booking form for you. Please select your preferences and submit.")
                 return reply
+                
+            elif intent == "bills":
+                if not user_token:
+                    self.session_states[session_id] = {"state": "awaiting_phone"}
+                    reply = "🔒 You need to be logged in to generate a bill.\n\nPlease enter your 10-digit phone number to get started."
+                    self._update_history(session_id, user_message, reply)
+                    return reply
+                user_role = getattr(self, "user_roles", {}).get(session_id, "")
+                admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
+                if user_role not in admin_roles:
+                    reply = "🚫 Sorry, only Admins and Finance Managers can generate bills."
+                    self._update_history(session_id, user_message, reply)
+                    return reply
+                reply = "__BILL_FORM_MARKER__"
+                self._update_history(session_id, user_message, "I've opened the bill generation form for you. Please fill in the details and submit.")
+                return reply
 
         # ── Normal Chat Flow ──────────────────────────────────────────────────
+        if intent == "complaints_menu" and not self._is_write_request(user_message):
+            if not user_token:
+                self.session_states[session_id] = {"state": "awaiting_phone"}
+                reply = "🔒 You need to be logged in to view complaints.\n\nPlease enter your 10-digit phone number to get started."
+                self._update_history(session_id, user_message, reply)
+                return reply
+            
+            # Admins only see Community Complaints — Personal Complaints are flat-specific
+            user_role = getattr(self, "user_roles", {}).get(session_id, "")
+            admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
+            if user_role in admin_roles:
+                options_json = [
+                    {"id": "COMMUNITY_COMPLAINTS_REQ", "label": "🏘️ Community Complaints"}
+                ]
+            else:
+                options_json = [
+                    {"id": "COMMUNITY_COMPLAINTS_REQ", "label": "🏘️ Community Complaints"},
+                    {"id": "PERSONAL_COMPLAINTS_REQ", "label": "🏠 Personal (Flat) Complaints"}
+                ]
+            marker_str = f"__COMPLAINT_TYPE_MARKER__|{json.dumps(options_json)}"
+            self._update_history(session_id, user_message, "Which type of complaints would you like to view?")
+            return marker_str
+
         api_context = ""
         if intent != "general":
             if not user_token:
@@ -424,14 +542,32 @@ class HomefyChatbot:
         if api_context:
             system_content += f"\n\n--- LIVE DATA FROM HOMEFY SYSTEM ---\n{api_context}\n---"
 
+        with open("last_api_context.txt", "w", encoding="utf-8") as f:
+            f.write(api_context)
+        
         messages = [{"role": "system", "content": system_content}]
         messages.extend(history[-MAX_HISTORY:])
-        messages.append({"role": "user", "content": user_message})
+        
+        # Friendly prompt replacements for internal UI commands
+        display_message = user_message
+        if display_message == "PERSONAL_COMPLAINTS_REQ":
+            display_message = "Please show me my personal complaints."
+        elif display_message == "COMMUNITY_COMPLAINTS_REQ":
+            display_message = "Please show me the community complaints."
+
+        messages.append({"role": "user", "content": display_message})
 
         # 3. Call LLM
         reply_message = self._call_llm(messages)
 
         reply_text = (reply_message.content or "").strip()
+        
+        # Fallback if the LLM completely failed to extract/format response
+        if not reply_text:
+            if api_context and ("[PERSONAL Complaints]" in api_context or "[COMMUNITY Complaints]" in api_context or "Amenities" in api_context):
+                reply_text = "Here is the data I found:\n" + api_context
+            else:
+                reply_text = "I couldn't find any relevant data or I encountered an error. Please try again."
 
         # 4. Update history
         self._update_history(session_id, user_message, reply_text)

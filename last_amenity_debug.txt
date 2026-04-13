@@ -1,0 +1,170 @@
+{
+  "allAmenities": {
+    "hasNext": false,
+    "count": 18,
+    "data": [
+      {
+        "id": "cmjh7d0l90fe7p80jq712yssf",
+        "name": "Amenity Testing",
+        "location": "Office",
+        "status": "AVAILABLE",
+        "description": "sadfffffffffffff",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmnpqwscs03n7p8e28yg43rfq",
+        "name": "Badminton",
+        "location": "chennai",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "HOUR"
+      },
+      {
+        "id": "cmnpuhfv203ocp8e2iso7gwsr",
+        "name": "Badminton Cout",
+        "location": "ground",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "HOUR"
+      },
+      {
+        "id": "cml52gxrf00bvp87lcpz6o88r",
+        "name": "Code Dtx",
+        "location": "Sholinganallur",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmjgsmw1z0ezrp80jxy245ji1",
+        "name": "Descrete Testing ",
+        "location": "kkk",
+        "status": "AVAILABLE",
+        "description": "ksksk",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmjl3iywr00lfp8kw54omn7t1",
+        "name": "Gym",
+        "location": "chennai",
+        "status": "AVAILABLE",
+        "description": "fit your self",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmk299ytq06eip8kwh2tbobqi",
+        "name": "Hourly Slots",
+        "location": "lot",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "HOUR"
+      },
+      {
+        "id": "cmjgsue2z0f0cp80jfbq97j12",
+        "name": "Image Testing",
+        "location": "chennai",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "HOUR"
+      },
+      {
+        "id": "cmlyv4aof00zop88ekhjcq8qq",
+        "name": "New",
+        "location": "D-Block ",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmk297cvp06dwp8kwoy4zklun",
+        "name": "New ",
+        "location": "Ch",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmk2923wd06dap8kwt8me0p34",
+        "name": "New Amenity",
+        "location": "Can",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "HOUR"
+      },
+      {
+        "id": "cmn5nnkad01irp8e2vbqx1pj3",
+        "name": "New Test 123",
+        "location": "test",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmk28u68e06c6p8kw0qfrvtrb",
+        "name": "Shops ",
+        "location": "Club house",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmnpq9ml703mop8e23e4ixqn2",
+        "name": "Swimming Pool",
+        "location": "hyderabad",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "HOUR"
+      },
+      {
+        "id": "cmntwfyi801iap8tsqwijs5rp",
+        "name": "Table Tennis",
+        "location": "hyderabad",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "HOUR"
+      },
+      {
+        "id": "cmjiaajtm000jp8kwt4y2ywsy",
+        "name": "Test",
+        "location": "Club house",
+        "status": "AVAILABLE",
+        "description": "kjkh",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmn5nl9of01iep8e2091bc9z0",
+        "name": "Testing",
+        "location": "test",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "DAY"
+      },
+      {
+        "id": "cmk28opiy06bgp8kwfnbzxrpe",
+        "name": "Vendor Place",
+        "location": "Near Clubhouse",
+        "status": "AVAILABLE",
+        "description": "",
+        "bookingType": "SLOT",
+        "scheduleType": "HOUR"
+      }
+    ]
+  }
+}

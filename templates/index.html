@@ -132,13 +132,25 @@
 
     function appendMessage(role, text) {
       // ── Complaint Form Detection ──────────────────────────────────
-      if (role === 'bot' && text.trim() === '__COMPLAINT_FORM_MARKER__') {
-        renderComplaintForm();
+      if (role === 'bot' && text.startsWith('__COMPLAINT_FORM_MARKER__')) {
+        let isAdmin = false;
+        if (text.includes('|')) {
+          try {
+            const payload = JSON.parse(text.split('|')[1]);
+            isAdmin = payload.isAdmin;
+          } catch(e) {}
+        }
+        renderComplaintForm(isAdmin);
         return;
       }
       // ── Amenity Form Detection ──────────────────────────────────
       if (role === 'bot' && text.trim() === '__AMENITY_FORM_MARKER__') {
         renderAmenityForm();
+        return;
+      }
+      // ── Bill Form Detection ──────────────────────────────────
+      if (role === 'bot' && text.trim() === '__BILL_FORM_MARKER__') {
+        renderBillForm();
         return;
       }
       // ── Apartment Selection Detection ──────────────────────────────────
@@ -159,6 +171,17 @@
           renderFlatSelection(payload);
         } catch (e) {
           console.error("Failed to parse flat selection marker", e);
+        }
+        return;
+      }
+
+      // ── Role Selection Detection ──────────────────────────────────
+      if (role === 'bot' && text.startsWith('__ROLE_SELECTION_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.split('|')[1]);
+          renderRoleSelection(payload);
+        } catch (e) {
+          console.error("Failed to parse role selection marker", e);
         }
         return;
       }
@@ -254,6 +277,68 @@
           allChips.forEach(c => c.disabled = true);
           // Pass the friendly label for the UI, but the apt.id for the backend
           sendMessage(apt.label, apt.id);
+        };
+        chipsContainer.appendChild(btn);
+      });
+
+      bubble.appendChild(chipsContainer);
+      inner.appendChild(bubble);
+
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+
+      row.appendChild(inner);
+
+      row.style.opacity = '0';
+      row.style.transform = 'translateY(12px)';
+      chatBody.appendChild(row);
+
+      requestAnimationFrame(() => {
+        row.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      });
+
+      scrollToBottom();
+    }
+
+    // ── Role Selection Form Logic ───────────────────────────────────────────
+    function renderRoleSelection(roles) {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.textContent = '🏠';
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.style.width = '100%';
+      
+      const title = document.createElement('p');
+      title.innerHTML = '<strong>Account Type</strong><br/>Please select a role to continue:';
+      title.style.marginBottom = '12px';
+      bubble.appendChild(title);
+
+      const chipsContainer = document.createElement('div');
+      chipsContainer.className = 'quick-chips';
+      chipsContainer.style.marginTop = '0';
+      chipsContainer.style.gap = '8px';
+      
+      roles.forEach(roleData => {
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.innerHTML = `${roleData.label}`;
+        btn.onclick = () => {
+          const allChips = chipsContainer.querySelectorAll('.chip');
+          allChips.forEach(c => c.disabled = true);
+          sendMessage(roleData.label, roleData.id);
         };
         chipsContainer.appendChild(btn);
       });
@@ -442,7 +527,7 @@
     });
 
     // ── Complaint Form Logic ────────────────────────────────────────
-    function renderComplaintForm() {
+    function renderComplaintForm(isAdmin = false) {
       const row = document.createElement('div');
       row.className = 'msg-row bot';
       row.id = 'complaintFormRow';
@@ -455,6 +540,15 @@
       const inner = document.createElement('div');
       inner.className = 'bubble-wrap';
       inner.style.maxWidth = '92%';
+
+      const personalOption = isAdmin ? '' : `
+              <label class="cform-radio">
+                <input type="radio" name="cfType" value="PERSONAL" checked />
+                <span>🏠 Personal (Flat)</span>
+              </label>
+      `;
+
+      const communityChecked = isAdmin ? 'checked' : '';
 
       const card = document.createElement('div');
       card.className = 'complaint-form-card';
@@ -476,12 +570,9 @@
           <div class="cform-group" id="cfgType">
             <label class="cform-label">Complaint Type <span class="required">*</span></label>
             <div class="cform-radio-group">
+              ${personalOption}
               <label class="cform-radio">
-                <input type="radio" name="cfType" value="PERSONAL" checked />
-                <span>🏠 Personal (Flat)</span>
-              </label>
-              <label class="cform-radio">
-                <input type="radio" name="cfType" value="COMMUNITY" />
+                <input type="radio" name="cfType" value="COMMUNITY" ${communityChecked} />
                 <span>🏘️ Community (Common)</span>
               </label>
             </div>
@@ -848,61 +939,59 @@
 
 
     async function loadAmenitySlots() {
-      const amenityId = document.getElementById('afAmenity')?.value;
-      const dateVal = document.getElementById('afDate')?.value;
-      const slotsGroup = document.getElementById('afgSlots');
+      const amenId = document.getElementById('afAmenity')?.value;
+      const date = document.getElementById('afDate')?.value;
       const slotsContainer = document.getElementById('afSlotsContainer');
       const loadingEl = document.getElementById('afLoadingSlots');
       const noSlotsEl = document.getElementById('afNoSlots');
+      const slotsGroup = document.getElementById('afgSlots');
 
-      if (!amenityId || !dateVal) return;
+      if (!amenId || !date) return;
 
       slotsGroup.style.display = 'none';
-      noSlotsEl.style.display = 'none';
       loadingEl.style.display = 'block';
+      noSlotsEl.style.display = 'none';
       slotsContainer.innerHTML = '';
 
       try {
-        const startDate = dateVal + 'T00:00:00Z';
-        const endDate = dateVal + 'T23:59:59Z';
         const res = await fetch('/api/amenities/slots', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ session_id: sessionId, amenity_id: amenityId, start_date: startDate, end_date: endDate })
+          body: JSON.stringify({
+            session_id: sessionId,
+            amenity_id: amenId,
+            start_date: date,
+            end_date: date
+          })
         });
         const data = await res.json();
         loadingEl.style.display = 'none';
-        const slots = data.slots || [];
-        const available = slots.filter(s => s.status === 'AVAILABLE' || !s.status);
 
-        if (available.length === 0) {
+        const slots = data.slots || [];
+        if (slots.length === 0) {
           noSlotsEl.style.display = 'block';
           return;
         }
 
         slotsGroup.style.display = 'block';
-        available.forEach(slot => {
-          const chip = document.createElement('button');
-          chip.type = 'button';
-          chip.className = 'slot-chip';
-          const startTime = slot.startTime ? new Date(slot.startTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : slot.id;
-          const endTime = slot.endTime ? new Date(slot.endTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '';
-          chip.innerHTML = `<span>${startTime}${endTime ? ' – ' + endTime : ''}</span>`;
-          chip.onclick = () => {
-            document.querySelectorAll('.slot-chip').forEach(c => c.classList.remove('selected'));
-            chip.classList.add('selected');
-            openBlockFlatModal(slot.id, amenityId);
-          };
-          slotsContainer.appendChild(chip);
+        slots.forEach(s => {
+          const btn = document.createElement('button');
+          btn.className = 'slot-pill';
+          btn.textContent = `${s.startTime} - ${s.endTime}`;
+          if (s.isBooked) {
+            btn.classList.add('booked');
+            btn.disabled = true;
+          } else {
+            btn.onclick = () => openBlockFlatModal(s.id, amenId);
+          }
+          slotsContainer.appendChild(btn);
         });
-
-      } catch {
+      } catch (e) {
         loadingEl.style.display = 'none';
         noSlotsEl.style.display = 'block';
         noSlotsEl.textContent = '⚠️ Failed to load slots. Please try again.';
       }
     }
-
 
     function cancelAmenityForm() {
       const formRow = document.getElementById('amenityFormRow');
@@ -914,6 +1003,210 @@
           formRow.remove();
           appendMessage('bot', 'Booking cancelled. How else can I help you?');
         }, 300);
+      }
+    }
+
+    // ── Individual Bill Form Logic ────────────────────────────────────
+    function renderBillForm() {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.id = 'billFormRow';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.textContent = '🏠';
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      inner.style.maxWidth = '92%';
+
+      const card = document.createElement('div');
+      card.className = 'complaint-form-card';
+      card.innerHTML = `
+        <div class="complaint-form-header">
+          <span class="form-icon">💳</span>
+          <span>Individual Bill Entry</span>
+        </div>
+        <div class="complaint-form-body">
+
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <div class="cform-group" style="flex:1; margin-bottom: 0;">
+              <label class="cform-label">Total Bill Amount <span class="required">*</span></label>
+              <input type="number" step="0.01" class="cform-input" id="bfAmount" placeholder="e.g. 500.00" />
+            </div>
+            <div class="cform-group" style="flex:1; margin-bottom: 0;">
+              <label class="cform-label">Bill Category <span class="required">*</span></label>
+              <select class="cform-select" id="bfCategory">
+                <option value="" disabled selected>Loading...</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+             <div class="cform-group" style="flex:1; margin-bottom: 0;">
+              <label class="cform-label">Select Blocks <span class="required">*</span></label>
+              <select class="cform-select" id="bfBlocks" onchange="onBillBlockChange()">
+                <option value="" disabled selected>Loading...</option>
+              </select>
+            </div>
+            <div class="cform-group" style="flex:1; margin-bottom: 0;">
+              <label class="cform-label">Select Flats <span class="required">*</span></label>
+              <select class="cform-select" id="bfFlats" disabled>
+                <option value="" disabled selected>Select block first...</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+            <div class="cform-group" style="flex:1; margin-bottom: 0;">
+              <label class="cform-label">Last Date <span class="required">*</span></label>
+              <input type="date" class="cform-input" id="bfDate" />
+            </div>
+            <div class="cform-group" style="flex:1; margin-bottom: 0;">
+              <label class="cform-label">Bill Created For <span class="required">*</span></label>
+              <select class="cform-select" id="bfApplicableTo">
+                <option value="OWNER_AND_TENANT" selected>Owner & Tenant</option>
+                <option value="OWNER">Owner</option>
+                <option value="TENANT">Tenant</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cform-group">
+            <label class="cform-label">Notes</label>
+            <textarea class="cform-textarea" id="bfNotes" placeholder="Additional details..." rows="3"></textarea>
+          </div>
+
+          <div class="cform-actions">
+             <button class="cform-submit" id="bfSubmitBtn" onclick="submitBillForm()">
+              <span class="spinner"></span>
+              <span class="btn-text">Submit</span>
+            </button>
+            <button class="cform-cancel" onclick="cancelBillForm()">Cancel</button>
+          </div>
+        </div>
+      `;
+
+      inner.appendChild(card);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+
+      row.style.opacity = '0';
+      row.style.transform = 'translateY(12px)';
+      chatBody.appendChild(row);
+      requestAnimationFrame(() => {
+        row.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      });
+      scrollToBottom();
+      loadBillFormData();
+    }
+
+    let _billBlocksData = [];
+
+    async function loadBillFormData() {
+      const catSel = document.getElementById('bfCategory');
+      fetch(`/api/finance/bill-categories?session_id=${encodeURIComponent(sessionId)}`)
+        .then(r => r.json())
+        .then(data => {
+          catSel.innerHTML = '<option value="" disabled selected>Select Category...</option>';
+          (data.categories || []).forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = c.name;
+            catSel.appendChild(opt);
+          });
+        });
+
+      const blockSel = document.getElementById('bfBlocks');
+      fetch(`/api/apartment/blocks-flats?session_id=${encodeURIComponent(sessionId)}`)
+        .then(r => r.json())
+        .then(data => {
+          _billBlocksData = data.blocks || [];
+          blockSel.innerHTML = '<option value="" disabled selected>Select Block...</option>';
+          _billBlocksData.forEach((b, i) => {
+            const opt = document.createElement('option');
+            opt.value = i;
+            opt.textContent = b.blockName;
+            blockSel.appendChild(opt);
+          });
+        });
+    }
+
+    function onBillBlockChange() {
+      const idx = document.getElementById('bfBlocks').value;
+      const flatSel = document.getElementById('bfFlats');
+      if (idx === '' || !_billBlocksData.length) return;
+      
+      const block = _billBlocksData[parseInt(idx)];
+      flatSel.innerHTML = '<option value="" disabled selected>Select Flat...</option>';
+      (block.flats || []).forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.flatId || f.requestId;
+        opt.textContent = f.flatNumber || '(unknown)';
+        flatSel.appendChild(opt);
+      });
+      flatSel.disabled = false;
+    }
+
+    function cancelBillForm() {
+      const formRow = document.getElementById('billFormRow');
+      if (formRow) formRow.remove();
+      appendMessage('bot', 'Bill creation cancelled.');
+    }
+
+    async function submitBillForm() {
+      const amount = document.getElementById('bfAmount').value;
+      const cat = document.getElementById('bfCategory').value;
+      const flat = document.getElementById('bfFlats').value;
+      const date = document.getElementById('bfDate').value;
+      const appTo = document.getElementById('bfApplicableTo').value;
+      const notes = document.getElementById('bfNotes').value;
+
+      if (!amount || !cat || !flat || !date) {
+        alert("Please fill out all required fields.");
+        return;
+      }
+
+      const btn = document.getElementById('bfSubmitBtn');
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/bills/create', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            session_id: sessionId,
+            amount,
+            category_id: cat,
+            flat_id: flat,
+            last_date: date,
+            applicable_to: appTo,
+            notes
+          })
+        });
+        const data = await res.json();
+        const formRow = document.getElementById('billFormRow');
+        if (formRow) formRow.remove();
+
+        if (data.status === 'success') {
+          appendMessage('bot', `✅ **Bill Created Successfully!**\n\n${data.message}`);
+        } else {
+          appendMessage('bot', `⚠️ ${data.error || data.message || 'Failed to create bill.'}`);
+        }
+      } catch (e) {
+        const formRow = document.getElementById('billFormRow');
+        if (formRow) formRow.remove();
+        appendMessage('bot', '⚠️ Network error while creating the bill.');
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
       }
     }
 

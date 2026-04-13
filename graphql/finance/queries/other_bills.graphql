@@ -1,0 +1,22 @@
+query MyOtherBills($filter: FilterBillInput!) {
+  myBills(filter: $filter) {
+    count
+    hasNext
+    data {
+      id
+      billId
+      amount
+      totalAmount
+      fineAmount
+      status
+      lastDate
+      isOverDue
+      notes
+      category {
+        id
+        name
+      }
+      createdAt
+    }
+  }
+}

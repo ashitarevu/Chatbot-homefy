@@ -26,12 +26,14 @@ query AllBookings($filter: FilterAmenityBookingInput) {
       }
       amenity {
         name
+        paymentType
       }
       actualAmount
       parking {
         spaceNumber
         parkingCategory {
           name
+          paymentType
         }
       }
     }
