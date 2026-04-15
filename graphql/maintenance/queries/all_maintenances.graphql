@@ -1,0 +1,18 @@
+query AllMaintenances($filter: MaintenanceFilterInput) {
+  allMaintenances(filter: $filter) {
+    count
+    data {
+      id
+      startDate
+      endDate
+      title
+      description
+      amountPerSqFt
+      paidAmount
+      pendingAmount
+      totalAmount
+      lastDate
+    }
+    hasNext
+  }
+}

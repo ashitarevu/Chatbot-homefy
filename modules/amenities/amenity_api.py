@@ -65,7 +65,7 @@ class AmenityMixin:
         variables = {"filter": {"perPage": 30}}
         data = self.execute_graphql(q, variables, token, apartment_id=apartment_id)
         
-        with open("last_amenity_debug.txt", "w") as f:
+        with open("logs/last_amenity_debug.txt", "w") as f:
             f.write(json.dumps(data, indent=2))
         
         # Format the data cleanly so the LLM does not get overwhelmed by giant JSON blocks or pagination info

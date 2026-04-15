@@ -1,0 +1,10 @@
+mutation Mutation($data: CreateMeetingInput!) {
+  createMeeting(data: $data) {
+    endTime
+    description
+    startTime
+    location
+    link
+    title
+  }
+}

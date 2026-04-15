@@ -186,6 +186,47 @@
         return;
       }
 
+      // ── Meeting Selection Detection ──────────────────────────────────
+      if (role === 'bot' && text.startsWith('__MEETING_SELECTION_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.split('|')[1]);
+          renderMeetingSelection(payload);
+        } catch (e) {
+          console.error("Failed to parse meeting selection marker", e);
+        }
+        return;
+      }
+
+      // ── Meeting Form Detection ──────────────────────────────────
+      if (role === 'bot' && text.trim() === '__MEETING_FORM_MARKER__') {
+        renderMeetingForm();
+        return;
+      }
+
+      // ── Parking Form Detection ──────────────────────────────────
+      if (role === 'bot' && text.trim() === '__PARKING_FORM_MARKER__') {
+        renderParkingForm();
+        return;
+      }
+
+      // ── Complaint Type Selection Detection ──────────────────────────────────
+      if (role === 'bot' && text.startsWith('__COMPLAINT_TYPE_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.split('|')[1]);
+          renderGenericSelection(payload, '📋 Complaint Type', 'Please select the type of complaints to view:');
+        } catch (e) {}
+        return;
+      }
+
+      // ── Parking Type Selection Detection ──────────────────────────────────
+      if (role === 'bot' && text.startsWith('__PARKING_TYPE_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.split('|')[1]);
+          renderGenericSelection(payload, '🅿️ Parking Categories', 'Which type of parking categories would you like to view?');
+        } catch (e) {}
+        return;
+      }
+
       const row = document.createElement('div');
       row.className = `msg-row ${role}`;
 
@@ -226,14 +267,20 @@
 
     function formatText(text) {
       // Basic markdown: bold, bullet lists, line breaks
-      return text
+      let formatted = text
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/`(.+?)`/g, '<code>$1</code>')
+        .replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--primary);text-decoration:underline;">$1</a>')
         .replace(/^• (.+)$/gm, '<li>$1</li>')
         .replace(/^- (.+)$/gm, '<li>$1</li>')
         .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
         .replace(/\n/g, '<br/>');
+        
+      // Auto-convert raw standalone URLs into clickable links (avoiding href anchors added above)
+      formatted = formatted.replace(/(?<!href="|href=')\b(https?:\/\/[^\s<]+)\b/g, '<a href="$1" target="_blank" style="color:var(--primary);text-decoration:underline;">$1</a>');
+      
+      return formatted;
     }
 
     function setStatus(text, color) {
@@ -306,6 +353,11 @@
 
     // ── Role Selection Form Logic ───────────────────────────────────────────
     function renderRoleSelection(roles) {
+      renderGenericSelection(roles, 'Account Type', 'Please select a role to continue:');
+    }
+
+    // ── Generic Selection logic ───────────────────────────────────────────
+    function renderGenericSelection(items, titleHtml, subtitleHtml) {
       const row = document.createElement('div');
       row.className = 'msg-row bot';
 
@@ -322,7 +374,7 @@
       bubble.style.width = '100%';
       
       const title = document.createElement('p');
-      title.innerHTML = '<strong>Account Type</strong><br/>Please select a role to continue:';
+      title.innerHTML = `<strong>${titleHtml}</strong><br/>${subtitleHtml}`;
       title.style.marginBottom = '12px';
       bubble.appendChild(title);
 
@@ -331,14 +383,14 @@
       chipsContainer.style.marginTop = '0';
       chipsContainer.style.gap = '8px';
       
-      roles.forEach(roleData => {
+      items.forEach(itemData => {
         const btn = document.createElement('button');
         btn.className = 'chip';
-        btn.innerHTML = `${roleData.label}`;
+        btn.innerHTML = `${itemData.label}`;
         btn.onclick = () => {
           const allChips = chipsContainer.querySelectorAll('.chip');
           allChips.forEach(c => c.disabled = true);
-          sendMessage(roleData.label, roleData.id);
+          sendMessage(itemData.label, itemData.id);
         };
         chipsContainer.appendChild(btn);
       });
@@ -427,6 +479,385 @@
       });
 
       scrollToBottom();
+    }
+
+    // ── Meeting Selection Form Logic ──────────────────────────────────────────
+    function renderMeetingSelection(meetings) {
+      if (!meetings || !meetings.length) return;
+      
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.textContent = '🏠';
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.style.width = '100%';
+      
+      const title = document.createElement('p');
+      title.innerHTML = '<strong>📅 Upcoming Meetings</strong><br/>Select a meeting to view its full details:';
+      title.style.marginBottom = '12px';
+      bubble.appendChild(title);
+
+      const chipsContainer = document.createElement('div');
+      chipsContainer.className = 'quick-chips';
+      chipsContainer.style.marginTop = '0';
+      chipsContainer.style.gap = '8px';
+      
+      meetings.forEach(m => {
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.innerHTML = `📢 ${m.label}`;
+        btn.onclick = () => {
+          const allChips = chipsContainer.querySelectorAll('.chip');
+          allChips.forEach(c => c.disabled = true);
+          // Pass a friendly text for UI, but the meeting ID for backend detail fetch
+          sendMessage(`Show details for meeting: ${m.label}`, m.id);
+        };
+        chipsContainer.appendChild(btn);
+      });
+
+      bubble.appendChild(chipsContainer);
+      inner.appendChild(bubble);
+
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+
+      row.appendChild(inner);
+
+      row.style.opacity = '0';
+      row.style.transform = 'translateY(12px)';
+      chatBody.appendChild(row);
+
+      requestAnimationFrame(() => {
+        row.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      });
+
+      scrollToBottom();
+    }
+
+    // ── Create Meeting Form Logic ──────────────────────────────────────────
+    function renderMeetingForm() {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.id = 'meetingFormRow';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.textContent = '🏠';
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      inner.style.maxWidth = '92%';
+
+      const card = document.createElement('div');
+      card.className = 'complaint-form-card';
+      card.innerHTML = `
+        <div class="complaint-form-header">
+          <span class="form-icon">📅</span>
+          <span>Fill in the details to schedule a new meeting</span>
+        </div>
+        <div class="complaint-form-body">
+          <div class="cform-row">
+            <div class="cform-group" style="flex:1" id="mfgTitle">
+              <label class="cform-label">Title <span class="required">*</span></label>
+              <input type="text" class="cform-input" id="mfTitle" placeholder="e.g., Monthly AGM" />
+            </div>
+            <div class="cform-group" style="flex:1" id="mfgLocation">
+              <label class="cform-label">Location <span class="required">*</span></label>
+              <input type="text" class="cform-input" id="mfLocation" placeholder="e.g., Clubhouse" />
+            </div>
+          </div>
+
+          <div class="cform-row">
+            <div class="cform-group" style="flex:1" id="mfgStart">
+              <label class="cform-label">Start Time <span class="required">*</span></label>
+              <input type="datetime-local" class="cform-input" id="mfStart" />
+            </div>
+            <div class="cform-group" style="flex:1" id="mfgEnd">
+              <label class="cform-label">End Time <span class="required">*</span></label>
+              <input type="datetime-local" class="cform-input" id="mfEnd" />
+            </div>
+          </div>
+
+          <div class="cform-group">
+            <label class="cform-label">Meeting Link <span style="color:var(--muted);font-weight:400;font-size:12px">(optional)</span></label>
+            <input type="text" class="cform-input" id="mfLink" placeholder="Zoom/Meet URL" />
+          </div>
+
+          <div class="cform-group">
+            <label class="cform-label">Description <span style="color:var(--muted);font-weight:400;font-size:12px">(optional)</span></label>
+            <textarea class="cform-textarea" id="mfDescription" placeholder="Agenda or notes..."></textarea>
+          </div>
+
+          <div class="cform-actions">
+            <button class="cform-submit" id="mfSubmitBtn" onclick="submitMeetingForm()">
+              <span class="spinner"></span>
+              <span class="btn-text">Create</span>
+            </button>
+            <button class="cform-cancel" onclick="cancelMeetingForm()">Cancel</button>
+          </div>
+        </div>
+      `;
+
+      inner.appendChild(card);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+
+      row.style.opacity = '0';
+      row.style.transform = 'translateY(12px)';
+      chatBody.appendChild(row);
+      requestAnimationFrame(() => {
+        row.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      });
+      scrollToBottom();
+    }
+
+    async function submitMeetingForm() {
+      const titleEl = document.getElementById('mfTitle');
+      const locEl = document.getElementById('mfLocation');
+      const startEl = document.getElementById('mfStart');
+      const endEl = document.getElementById('mfEnd');
+      const descEl = document.getElementById('mfDescription');
+      const linkEl = document.getElementById('mfLink');
+
+      const title = titleEl.value.trim();
+      const loc = locEl.value.trim();
+      const start = startEl.value;
+      const end = endEl.value;
+
+      document.getElementById('mfgTitle').classList.toggle('has-error', !title);
+      document.getElementById('mfgLocation').classList.toggle('has-error', !loc);
+      document.getElementById('mfgStart').classList.toggle('has-error', !start);
+      document.getElementById('mfgEnd').classList.toggle('has-error', !end);
+
+      if (!title || !loc || !start || !end) return;
+
+      const btn = document.getElementById('mfSubmitBtn');
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        // Convert to ISO-8601 for the GraphQL API
+        const isoStart = new Date(start).toISOString();
+        const isoEnd = new Date(end).toISOString();
+
+        const res = await fetch('/api/meetings/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            title: title,
+            location: loc,
+            startTime: isoStart,
+            endTime: isoEnd,
+            description: descEl.value.trim(),
+            link: linkEl.value.trim()
+          })
+        });
+
+        const data = await res.json();
+        const formRow = document.getElementById('meetingFormRow');
+        if (formRow) formRow.remove();
+
+        if (data.status === 'success') {
+          appendMessage('bot', `✅ **Meeting successfully scheduled!**\n\n**Title:** ${title}\n**Time:** ${new Date(start).toLocaleString()}\n**Location:** ${loc}`);
+        } else {
+          appendMessage('bot', `⚠️ ${data.message || 'Failed to create meeting'}`);
+        }
+      } catch (e) {
+        const formRow = document.getElementById('meetingFormRow');
+        if (formRow) formRow.remove();
+        appendMessage('bot', '⚠️ Network error while creating meeting.');
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    function cancelMeetingForm() {
+      const row = document.getElementById('meetingFormRow');
+      if (row) row.remove();
+      appendMessage('bot', 'Meeting creation cancelled.');
+    }
+
+    // ── Create Parking Category Form Logic ────────────────────────────────
+    function renderParkingForm() {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.id = 'parkingFormRow';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.textContent = '🏠';
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      inner.style.maxWidth = '92%';
+
+      const card = document.createElement('div');
+      card.className = 'complaint-form-card';
+      card.innerHTML = `
+        <div class="complaint-form-header">
+          <span class="form-icon">🅿️</span>
+          <span>Add Parking Category</span>
+        </div>
+        <div class="complaint-form-body">
+
+          <div class="cform-row">
+            <div class="cform-group" style="flex:2" id="pfgName">
+              <label class="cform-label">Name <span class="required">*</span></label>
+              <input type="text" class="cform-input" id="pfName" placeholder="e.g., Visitor Slot" maxlength="30" />
+              <div class="cform-error">Please enter a name</div>
+            </div>
+            <div class="cform-group" style="flex:1" id="pfgType">
+              <label class="cform-label">Type <span class="required">*</span></label>
+              <select class="cform-select" id="pfType">
+                <option value="OTHER" selected>OTHER</option>
+                <option value="RESIDENT">RESIDENT</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cform-row">
+            <div class="cform-group" style="flex:1" id="pfgMinBooking">
+              <label class="cform-label">Min Booking Days <span class="required">*</span></label>
+              <input type="number" class="cform-input" id="pfMinBooking" value="1" min="1" />
+              <div class="cform-error">Please enter min booking days</div>
+            </div>
+            <div class="cform-group" style="flex:1">
+              <label class="cform-label">Max Booking Days <span style="color:var(--muted);font-weight:400;font-size:12px">(Optional)</span></label>
+              <input type="number" class="cform-input" id="pfMaxBooking" placeholder="e.g., 30" min="1" />
+            </div>
+          </div>
+
+          <div class="cform-group" id="pfgPaymentType">
+            <label class="cform-label">Payment Type <span class="required">*</span></label>
+            <select class="cform-select" id="pfPaymentType">
+              <option value="" disabled selected>Select Payment Type</option>
+              <option value="FREE">FREE</option>
+              <option value="ONLINE">ONLINE</option>
+              <option value="OFFLINE">OFFLINE</option>
+            </select>
+            <div class="cform-error">Please select a payment type</div>
+          </div>
+
+          <div class="cform-group" id="pfgBasePrice">
+            <label class="cform-label">Base Price <span style="color:var(--muted);font-weight:400;font-size:12px">(₹ — required if not FREE)</span></label>
+            <input type="number" class="cform-input" id="pfBasePrice" value="0" min="0" step="0.01" placeholder="0" />
+          </div>
+
+          <div class="cform-actions">
+            <button class="cform-submit" id="pfSubmitBtn" onclick="submitParkingForm()">
+              <span class="spinner"></span>
+              <span class="btn-text">Add</span>
+            </button>
+            <button class="cform-cancel" onclick="cancelParkingForm()">Cancel</button>
+          </div>
+        </div>
+      `;
+
+      inner.appendChild(card);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+
+      row.style.opacity = '0';
+      row.style.transform = 'translateY(12px)';
+      chatBody.appendChild(row);
+      requestAnimationFrame(() => {
+        row.style.transition = 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        row.style.opacity = '1';
+        row.style.transform = 'translateY(0)';
+      });
+      scrollToBottom();
+
+      // Show/hide base price based on payment type
+      const paymentSel = document.getElementById('pfPaymentType');
+      const basePriceGroup = document.getElementById('pfgBasePrice');
+      paymentSel.addEventListener('change', () => {
+        basePriceGroup.style.display = paymentSel.value === 'FREE' ? 'none' : '';
+        if (paymentSel.value === 'FREE') document.getElementById('pfBasePrice').value = '0';
+      });
+      // Start hidden since default is no selection
+      basePriceGroup.style.display = 'none';
+    }
+
+    async function submitParkingForm() {
+      const nameVal = document.getElementById('pfName').value.trim();
+      const typeVal = document.getElementById('pfType').value;
+      const minBookingVal = document.getElementById('pfMinBooking').value;
+      const maxBookingVal = document.getElementById('pfMaxBooking').value;
+      const paymentTypeVal = document.getElementById('pfPaymentType').value;
+      const basePriceVal = document.getElementById('pfBasePrice').value || '0';
+
+      // Validation
+      document.getElementById('pfgName').classList.toggle('has-error', !nameVal);
+      document.getElementById('pfgPaymentType').classList.toggle('has-error', !paymentTypeVal);
+      document.getElementById('pfgMinBooking').classList.toggle('has-error', !minBookingVal);
+      if (!nameVal || !paymentTypeVal || !minBookingVal) return;
+
+      const btn = document.getElementById('pfSubmitBtn');
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/parking/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            session_id: sessionId,
+            name: nameVal,
+            p_type: typeVal,
+            min_booking: parseInt(minBookingVal),
+            max_booking: maxBookingVal ? parseInt(maxBookingVal) : null,
+            payment_type: paymentTypeVal,
+            base_price: parseFloat(basePriceVal)
+          })
+        });
+
+        const data = await res.json();
+        const formRow = document.getElementById('parkingFormRow');
+        if (formRow) formRow.remove();
+
+        if (data.status === 'success') {
+          appendMessage('bot', `✅ **Parking category created!**\n\n**Name:** ${nameVal}\n**Type:** ${typeVal}\n**Payment:** ${paymentTypeVal}`);
+        } else {
+          appendMessage('bot', `⚠️ ${data.message || 'Failed to create parking category.'}`);
+        }
+      } catch (e) {
+        const formRow = document.getElementById('parkingFormRow');
+        if (formRow) formRow.remove();
+        appendMessage('bot', '⚠️ Network error while creating parking category.');
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    function cancelParkingForm() {
+      const row = document.getElementById('parkingFormRow');
+      if (row) row.remove();
+      appendMessage('bot', 'Parking category creation cancelled.');
     }
 
     // ── Send message ───────────────────────────────────────────────────────

@@ -1,0 +1,12 @@
+mutation CreateParkingCategory($data: CreateParkingCategoryInput!) {
+  createParkingCategory(data: $data) {
+    id
+    name
+    type
+    minBooking
+    maxBooking
+    scheduleType
+    paymentType
+    basePrice
+  }
+}

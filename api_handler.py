@@ -11,10 +11,13 @@ from modules.auth.auth_api import AuthMixin
 from modules.amenities.amenity_api import AmenityMixin
 from modules.complaints.complaint_api import ComplaintMixin
 from modules.community.community_api import CommunityMixin
+from modules.meetings.meeting_api import MeetingMixin
 from modules.finance.finance_api import FinanceMixin
+from modules.maintenance.maintenance_api import MaintenanceMixin
+from modules.parking.parking_api import ParkingMixin
 
 
-class HomefyAPIHandler(BaseAPIClient, AuthMixin, AmenityMixin, ComplaintMixin, CommunityMixin, FinanceMixin):
+class HomefyAPIHandler(BaseAPIClient, AuthMixin, AmenityMixin, ComplaintMixin, CommunityMixin, MeetingMixin, FinanceMixin, MaintenanceMixin, ParkingMixin):
     """Executes Homefy GraphQL queries and REST calls and summarises results."""
 
     # ── Intent → API chain map ────────────────────────────────────────────────
@@ -103,7 +106,12 @@ class HomefyAPIHandler(BaseAPIClient, AuthMixin, AmenityMixin, ComplaintMixin, C
 
         elif intent == "vehicles":
             context_parts.append(self._q_vehicles(token, role))
-            context_parts.append(self._q_parking_categories(token))
+
+        elif intent == "parking_resident":
+            context_parts.append(self._q_parking_categories(token, type_filter="RESIDENT"))
+
+        elif intent == "parking_other":
+            context_parts.append(self._q_parking_categories(token, type_filter="OTHER"))
 
         elif intent == "helpers":
             context_parts.append(self._q_helpers(token, role))
@@ -130,9 +138,32 @@ class HomefyAPIHandler(BaseAPIClient, AuthMixin, AmenityMixin, ComplaintMixin, C
             context_parts.append(self._q_all_pets(token))
 
         elif intent == "meetings":
-            context_parts.append(self._q_all_meetings(token))
+            # 1. Detect intent to schedule/create FIRST to avoid unnecessary API calls
+            msg_lower = user_message.lower()
+            if any(x in msg_lower for x in ["schedule", "create", "add", "new meeting"]):
+                if role not in ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]:
+                    return "🚫 User can't create meeting, only Admins are allowed."
+                # Return the marker for the frontend to render the form
+                return "__MEETING_FORM_MARKER__"
+
+            # 2. Otherwise fetch meetings
+            context_parts.append(self._q_all_meetings(token, apartment_id=apartment_id))
+            raw_meetings = self.get_meetings_raw(token, apartment_id=apartment_id)
+            if raw_meetings:
+                context_parts.append("\n[RAW MEETING DATA FOR BUTTONS]:")
+                context_parts.append(str(raw_meetings))
+            
+            import re
+            meet_match = re.search(r'\b(cm[a-z0-9]{20,})\b', user_message, re.IGNORECASE)
+            if meet_match:
+                meet_id = meet_match.group(1).lower()
+                detail = self._q_get_detailed_meeting(token, meet_id, apartment_id=apartment_id)
+                context_parts.append(self._fmt(detail, f"Detailed Meeting {meet_id}"))
 
         elif intent == "flats":
             context_parts.append(self._q_all_flats(token))
+
+        elif intent == "maintenance":
+            context_parts.append(self._q_all_maintenances(token))
 
         return "\n".join(context_parts)

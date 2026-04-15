@@ -53,11 +53,16 @@ Reply exactly or similar to: "I'm Homefy Assistant. I can only help you with tas
 5. For available amenities, output a human-readable list. You MUST strictly list ALL amenities returned in the data context without truncating or omitting any. Show ONLY the fields: Name and Location for each. Do not show raw JSON or extra descriptions. Always suggest: "Would you like to view available slots for this amenity? (please provide the Amenity ID or Name)"
 6. For your personal amenity bookings, show each as a numbered list with amenity name, date, time, and status.
 7. For bills, group them by category (e.g. Rental, Electricity, Gas Bill). For each bill show: Bill ID, Amount (₹), Status, Due Date. Highlight ⚠️ OVERDUE bills prominently.
-8. Keep all responses concise. No walls of text.
+8. For community meetings, if you are listing multiple upcoming meetings, you MUST respond exactly with the special marker and a JSON payload: `__MEETING_SELECTION_MARKER__|[{"id": "...", "label": "..."}]`. Do NOT add any extra text or pleasantries. If you are showing details for just ONE meeting, format it as a clean text summary.
+9. Keep all responses concise. No walls of text.
 
 --- COMPLAINT CREATION FLOW ---
 If the user wants to raise/create/add a complaint, you MUST reply with exactly this special marker:
 __COMPLAINT_FORM_MARKER__
+
+--- MEETING CREATION FLOW ---
+If the user wants to schedule/create/add/new a meeting, you MUST reply with exactly this special marker:
+__MEETING_FORM_MARKER__
 Do NOT ask for description, category, or any other details. Just reply precisely with that marker so the system can show the interactive form.
 
 --- AMENITY BOOKING FLOW ---
@@ -69,6 +74,11 @@ Do NOT ask for date, time, or any other details. Just reply precisely with that 
 If the user wants to generate, create, or add a bill (Rental, Electricity, Maintenance, etc.), you MUST reply with exactly this special marker:
 __BILL_FORM_MARKER__
 Do NOT ask for amounts, categories, or flats. Just reply precisely with that marker so the system can show the interactive form.
+
+--- PARKING CREATION FLOW ---
+If the user wants to add, create, or register a new parking category, you MUST reply with exactly this special marker:
+__PARKING_FORM_MARKER__
+Do NOT ask for details. Just reply precisely with that marker so the system can show the interactive form.
 """
 
 # ── Model config ───────────────────────────────────────────────────────────────
@@ -122,6 +132,10 @@ class HomefyChatbot:
             return "visitors"
         if any(k in msg for k in ["announcement", "anouncement", "notice", "update", "news"]):
             return "announcements"
+        if "parking_resident_req" in msg:
+            return "parking_resident"
+        if "parking_other_req" in msg:
+            return "parking_other"
         if any(k in msg for k in ["vehicle", "car", "bike", "parking", "park my", "parking slot", "parking space", "parking category", "two wheeler", "four wheeler"]):
             return "vehicles"
         if any(k in msg for k in ["helper", "maid", "cleaner", "cook", "attendence", "attendance"]):
@@ -142,6 +156,8 @@ class HomefyChatbot:
             return "meetings"
         if any(k in msg for k in ["flat", "unit", "floor"]):
             return "flats"
+        if any(k in msg for k in ["maintenance", "maintenance bill"]):
+            return "maintenance"
         if any(k in msg for k in ["profile", "my account", "who am i", "my details", "my info", "get my profile", "show profile", "my name", "my email"]):
             return "profile"
         return "general"
@@ -450,7 +466,13 @@ class HomefyChatbot:
                 
             return self._finalize_login(session_id, user_message, chosen_apt, chosen_flat, state_data.get("initial_token"))
 
-        intent = self._detect_intent(user_message)
+        # Bypass LLM intent classification if the message is exactly a Meeting ID
+        import re
+        if re.search(r'^cm[a-z0-9]{20,}$', user_message.strip().lower()):
+            intent = "meetings"
+            print(f"[{session_id}] Bypassed LLM Intent (Meeting ID match): meetings")
+        else:
+            intent = self._detect_intent(user_message)
 
         # ── Form Shortcuts ───────────────────────────────────────────
         if self._is_write_request(user_message):
@@ -495,6 +517,16 @@ class HomefyChatbot:
                 self._update_history(session_id, user_message, "I've opened the bill generation form for you. Please fill in the details and submit.")
                 return reply
 
+            elif intent == "vehicles":
+                if not user_token:
+                    self.session_states[session_id] = {"state": "awaiting_phone"}
+                    reply = "🔒 You need to be logged in to create a parking category.\n\nPlease enter your 10-digit phone number to get started."
+                    self._update_history(session_id, user_message, reply)
+                    return reply
+                reply = "__PARKING_FORM_MARKER__"
+                self._update_history(session_id, user_message, "I've opened the parking category form for you. Please fill in the details and submit.")
+                return reply
+
         # ── Normal Chat Flow ──────────────────────────────────────────────────
         if intent == "complaints_menu" and not self._is_write_request(user_message):
             if not user_token:
@@ -517,6 +549,21 @@ class HomefyChatbot:
                 ]
             marker_str = f"__COMPLAINT_TYPE_MARKER__|{json.dumps(options_json)}"
             self._update_history(session_id, user_message, "Which type of complaints would you like to view?")
+            return marker_str
+
+        if intent == "vehicles" and not self._is_write_request(user_message) and "parking" in user_message.lower() and "PARKING_" not in user_message:
+            if not user_token:
+                self.session_states[session_id] = {"state": "awaiting_phone"}
+                reply = "🔒 You need to be logged in to view parking.\n\nPlease enter your 10-digit phone number to get started."
+                self._update_history(session_id, user_message, reply)
+                return reply
+                
+            options_json = [
+                {"id": "PARKING_RESIDENT_REQ", "label": "Resident Parking Categories"},
+                {"id": "PARKING_OTHER_REQ", "label": "Other Parking Categories"}
+            ]
+            marker_str = f"__PARKING_TYPE_MARKER__|{json.dumps(options_json)}"
+            self._update_history(session_id, user_message, "Which type of parking categories would you like to view?")
             return marker_str
 
         api_context = ""
@@ -542,7 +589,7 @@ class HomefyChatbot:
         if api_context:
             system_content += f"\n\n--- LIVE DATA FROM HOMEFY SYSTEM ---\n{api_context}\n---"
 
-        with open("last_api_context.txt", "w", encoding="utf-8") as f:
+        with open("logs/last_api_context.txt", "w", encoding="utf-8") as f:
             f.write(api_context)
         
         messages = [{"role": "system", "content": system_content}]
@@ -554,6 +601,10 @@ class HomefyChatbot:
             display_message = "Please show me my personal complaints."
         elif display_message == "COMMUNITY_COMPLAINTS_REQ":
             display_message = "Please show me the community complaints."
+        elif display_message == "PARKING_RESIDENT_REQ":
+            display_message = "Please show me Resident parking categories."
+        elif display_message == "PARKING_OTHER_REQ":
+            display_message = "Please show me Other parking categories."
 
         messages.append({"role": "user", "content": display_message})
 

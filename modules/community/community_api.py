@@ -30,16 +30,6 @@ class CommunityMixin:
             q = self._load_gql("graphql/community/queries/all_vehicles.graphql")
             return self._fmt(self.execute_graphql(q, {}, token), "All Community Vehicles")
 
-    def _q_parking_categories(self, token):
-        try:
-            q = self._load_gql("graphql/parking/queries/all_parking_categories.graphql")
-            data = self.execute_graphql(q, {"filter": {}}, token)
-            if "error" in data:
-                return "[Parking Categories]: unavailable"
-            return self._fmt(data, "Parking Categories")
-        except Exception as e:
-            return f"[Parking Categories]: unavailable ({e})"
-
     def _q_helpers(self, token, role):
         if role in ["OWNER", "TENANT", "OWNER_FAMILY", "RESIDENT"]:
             q = self._load_gql("graphql/community/queries/my_helpers.graphql")
@@ -80,9 +70,6 @@ class CommunityMixin:
         q = self._load_gql("graphql/community/queries/all_pets.graphql")
         return self._fmt(self.execute_graphql(q, {}, token), "Registered Pets")
 
-    def _q_all_meetings(self, token):
-        q = self._load_gql("graphql/community/queries/all_meetings.graphql")
-        return self._fmt(self.execute_graphql(q, {}, token), "Meetings")
 
     def _q_all_flats(self, token):
         q = self._load_gql("graphql/community/queries/all_flats.graphql")

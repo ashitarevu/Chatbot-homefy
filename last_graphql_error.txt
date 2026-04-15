@@ -1,1 +1,14 @@
-400 Client Error: Bad Request for url: https://api-staging.homefy.co.in/graphql - {'errors': [{'message': 'Sorry something went wrong', 'extensions': {'message': 'Sorry something went wrong', 'error': {'code': 500, 'message': 'Sorry internal server error'}, 'status': 'INTERNAL_SERVER_ERROR', 'code': 500}}]}
+[
+  {
+    "message": "Sorry your request is forbidden",
+    "extensions": {
+      "message": "Sorry your request is forbidden",
+      "error": {
+        "code": 350,
+        "message": "Sorry you are forbidden to perform this action"
+      },
+      "status": "BAD_REQUEST",
+      "code": 403
+    }
+  }
+]
