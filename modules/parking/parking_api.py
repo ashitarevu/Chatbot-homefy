@@ -16,7 +16,7 @@ class ParkingMixin:
         except Exception as e:
             return f"[Parking Categories]: unavailable ({e})"
 
-    def create_parking_category(self, token, name, p_type, min_booking, schedule_type, payment_type, base_price=0, max_booking=None):
+    def create_parking_category(self, token, name, p_type, min_booking, schedule_type, payment_type, base_price=0, max_booking=None, apartment_id=""):
         """Create a new parking category using the CreateParkingCategory mutation."""
         try:
             q = self._load_gql("graphql/parking/mutations/create_parking_category.graphql")
@@ -32,10 +32,13 @@ class ParkingMixin:
             if max_booking:
                 data["maxBooking"] = int(max_booking)
                 
-            res = self.execute_graphql(q, {"data": data}, token)
+            res = self.execute_graphql(q, {"data": data}, token, apartment_id=apartment_id)
             
             if "error" in res:
-                return {"status": "error", "message": res["error"]}
+                error_msg = res["error"]
+                if isinstance(error_msg, list) and len(error_msg) > 0 and isinstance(error_msg[0], dict) and "message" in error_msg[0]:
+                    error_msg = error_msg[0]["message"]
+                return {"status": "error", "message": str(error_msg)}
                 
             if res.get("createParkingCategory"):
                 return {"status": "success", "message": "Parking category successfully created."}
