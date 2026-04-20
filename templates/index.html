@@ -417,35 +417,46 @@
         return;
       }
       // ── Apartment Selection Detection ──────────────────────────────────
-      if (role === 'bot' && text.trim().startsWith('__APARTMENT_SELECTION_MARKER__|')) {
+      if (role === 'bot' && text.includes('__APARTMENT_SELECTION_MARKER__|')) {
         try {
-          const payload = JSON.parse(text.trim().split('|')[1]);
+          const parts = text.split('__APARTMENT_SELECTION_MARKER__|');
+          if (parts[0].trim()) { appendPlainTextBubble('bot', parts[0].trim()); }
+          const payload = JSON.parse(parts[1]);
           renderApartmentSelection(payload);
-        } catch (e) {
-          console.error("Failed to parse apartment selection marker", e);
-        }
+        } catch (e) { console.error("Failed to parse apartment selection marker", e); }
         return;
       }
       
       // ── Flat Selection Detection ──────────────────────────────────
-      if (role === 'bot' && text.trim().startsWith('__FLAT_SELECTION_MARKER__|')) {
+      if (role === 'bot' && text.includes('__FLAT_SELECTION_MARKER__|')) {
         try {
-          const payload = JSON.parse(text.trim().split('|')[1]);
+          const parts = text.split('__FLAT_SELECTION_MARKER__|');
+          if (parts[0].trim()) { appendPlainTextBubble('bot', parts[0].trim()); }
+          const payload = JSON.parse(parts[1]);
           renderFlatSelection(payload);
-        } catch (e) {
-          console.error("Failed to parse flat selection marker", e);
-        }
+        } catch (e) { console.error("Failed to parse flat selection marker", e); }
         return;
       }
 
       // ── Role Selection Detection ──────────────────────────────────
-      if (role === 'bot' && text.trim().startsWith('__ROLE_SELECTION_MARKER__|')) {
+      if (role === 'bot' && text.includes('__ROLE_SELECTION_MARKER__|')) {
         try {
-          const payload = JSON.parse(text.trim().split('|')[1]);
+          const parts = text.split('__ROLE_SELECTION_MARKER__|');
+          if (parts[0].trim()) { appendPlainTextBubble('bot', parts[0].trim()); }
+          const payload = JSON.parse(parts[1]);
           renderRoleSelection(payload);
-        } catch (e) {
-          console.error("Failed to parse role selection marker", e);
-        }
+        } catch (e) { console.error("Failed to parse role selection marker", e); }
+        return;
+      }
+
+      // ── Main Menu Detection ──────────────────────────────────
+      if (role === 'bot' && text.includes('__MAIN_MENU_MARKER__|')) {
+        try {
+          const parts = text.split('__MAIN_MENU_MARKER__|');
+          if (parts[0].trim()) { appendPlainTextBubble('bot', parts[0].trim()); }
+          const payload = JSON.parse(parts[1]);
+          renderMainMenu(payload);
+        } catch (e) { console.error("Failed to parse main menu marker", e); }
         return;
       }
 
@@ -614,7 +625,11 @@
         } catch (e) {}
         return;
       }
-
+      appendPlainTextBubble(role, text);
+    }
+    
+    function appendPlainTextBubble(role, text) {
+      if (!text) return;
       const row = document.createElement('div');
       row.className = `msg-row ${role}`;
 
@@ -742,6 +757,10 @@
     // ── Role Selection Form Logic ───────────────────────────────────────────
     function renderRoleSelection(roles) {
       renderGenericSelection(roles, 'Account Type', 'Please select a role to continue:');
+    }
+
+    function renderMainMenu(options) {
+      renderGenericSelection(options, 'Main Menu', 'How can I help you today?');
     }
 
     // ── Generic Selection logic ───────────────────────────────────────────

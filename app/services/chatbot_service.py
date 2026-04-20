@@ -96,6 +96,7 @@ class HomefyChatbot:
         self.auth_tokens = {}
         self.user_roles = {}
         self.apartment_ids: dict[str, str] = {}  # session_id → apartment ID
+        self.initial_tokens: dict[str, str] = {} # session_id → initial token from OTP
         self._init_model()
 
     # ── Model initialisation ──────────────────────────────────────────────────
@@ -163,6 +164,8 @@ class HomefyChatbot:
             return "maintenance"
         if any(k in msg for k in ["profile", "my account", "who am i", "my details", "my info", "get my profile", "show profile", "my name", "my email"]):
             return "profile"
+        if any(k in msg for k in ["switch flat", "change flat", "change apartment", "switch apartment", "change account", "switch account"]):
+            return "switch_flat"
         return "general"
 
     def _is_write_request(self, message: str) -> bool:
@@ -451,6 +454,48 @@ class HomefyChatbot:
             print(f"[{session_id}] Bypassed LLM Intent (Meeting ID match): meetings")
         else:
             intent = self._detect_intent(user_message)
+
+        # ── Switch Flat / Apartment Handling ─────────────────────────
+        if intent == "switch_flat" or user_message.strip() == "switch_flat_req":
+            initial_token = self.initial_tokens.get(session_id)
+            if not initial_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 Session expired or not logged in. Please log in again to switch apartments.")
+            
+            apartments = self.api_handler.get_my_apartments(initial_token)
+            apts_list = apartments.get("myApartments", [])
+            
+            allowed_statuses = {"APPROVED", "ACTIVE"}
+            valid_apts = []
+            for apt in apts_list:
+                active_reqs = [r for r in apt.get("requests", []) if r.get("accessStatus", "").upper() in allowed_statuses]
+                if active_reqs:
+                    apt_copy = apt.copy()
+                    apt_copy["requests"] = active_reqs
+                    valid_apts.append(apt_copy)
+
+            if not valid_apts:
+                return "No approved apartments found for your account."
+
+            options_json = [{"id": apt.get("id"), "label": apt.get("name", "Unknown Apartment")} for apt in valid_apts]
+            self.session_states[session_id] = {
+                "state": "awaiting_apartment_choice",
+                "valid_apts": valid_apts,
+                "initial_token": initial_token,
+                "user_roles_list": ["OWNER", "OWNER_FAMILY", "TENANT"],
+                "admin_roles_list": ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
+            }
+            marker_str = f"__APARTMENT_SELECTION_MARKER__|{json.dumps(options_json)}"
+            self._update_history(session_id, user_message, "Sure! Please select the apartment you'd like to switch to:")
+            return marker_str
+
+        if user_message.strip() == "retry_flats_req":
+            # Re-trigger flat selection for the currently chosen apartment
+            chosen_apt = self.session_states.get(session_id, {}).get("chosen_apt")
+            initial_token = self.initial_tokens.get(session_id)
+            user_roles = self.session_states.get(session_id, {}).get("user_roles_list", ["OWNER", "OWNER_FAMILY", "TENANT"])
+            if not chosen_apt or not initial_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 Session state lost. Please log in again.")
+            return self._handle_flat_display(session_id, user_message, chosen_apt, initial_token, user_roles)
 
         # ── Form Shortcuts ───────────────────────────────────────────
         if self._is_write_request(user_message):
@@ -904,11 +949,20 @@ class HomefyChatbot:
                 "user_roles_list": user_roles
             }
             
+            # Show navigation buttons instead of just re-displaying flats
+            options = [
+                {"id": "retry_flats_req", "label": "🔄 Select different Flat"},
+                {"id": "switch_flat_req", "label": "🏢 Change Apartment"},
+                {"id": "logout", "label": "🚪 Logout"}
+            ]
+            marker_str = f"__ROLE_SELECTION_MARKER__|{json.dumps(options)}"
+            
             full_reply = explanation + marker_str
-            self._update_history(session_id, user_message, explanation + "Please select another flat.")
+            self._update_history(session_id, user_message, explanation + "What would you like to do next?")
             return full_reply
             
         self.auth_tokens[session_id] = final_token
+        self.initial_tokens[session_id] = initial_token
         
         # Store the apartment ID so amenity queries can be filtered by apartment
         apt_id = chosen_apt.get("id", "")
@@ -922,9 +976,20 @@ class HomefyChatbot:
         self.session_states[session_id] = {"state": "normal"}
         
         apt_name = chosen_apt.get("name", "Unknown Apartment")
-        reply = f"✅ Awesome, you are now logged in to **{apt_name}**! What would you like to do?\n\nYou can try:\n• Show my bills\n• Raise a complaint\n• Book an amenity\n• Show today visitors"
-        self._update_history(session_id, "Selected flat", reply)
-        return reply
+        return self._send_main_menu(session_id, f"✅ Awesome, you are now logged in to **{apt_name}**! What would you like to do?")
+
+    def _send_main_menu(self, session_id: str, intro_text: str):
+        """Returns the interactive main menu chips."""
+        options = [
+            {"id": "Show my bills", "label": "💳 My Bills"},
+            {"id": "I want to raise a complaint", "label": "📝 Raise a Complaint"},
+            {"id": "I want to book an amenity", "label": "🏊 Book Amenity"},
+            {"id": "switch_flat_req", "label": "🏢 Switch Flat/Apartment"},
+            {"id": "logout", "label": "🚪 Logout"}
+        ]
+        marker = f"__MAIN_MENU_MARKER__|{json.dumps(options)}"
+        self._update_history(session_id, "Menu request", intro_text)
+        return marker
 
     def _update_history(self, session_id: str, user_message: str, bot_reply: str):
         history = self._get_history(session_id)
