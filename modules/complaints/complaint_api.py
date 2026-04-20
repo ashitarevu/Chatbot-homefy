@@ -114,7 +114,44 @@ class ComplaintMixin:
         except Exception as e:
             return f"[{type_filter} Complaints Error]: {e}\n"
 
+    def _q_get_complaints_raw(self, token, type_filter="COMMUNITY"):
+        """Fetch complaints and return as a raw list of dictionaries."""
+        try:
+            q = self._load_gql("graphql/complaints/queries/all_complaints.graphql")
+            all_items = []
+            cursor_id = None
+            
+            while True:
+                filter_args = {"type": type_filter, "perPage": 20}
+                if cursor_id:
+                    filter_args["cursorId"] = cursor_id
+                    
+                variables = {"filter": filter_args}
+                data = self.execute_graphql(q, variables, token)
+                if "error" in data:
+                    return []
+
+                all_comp_data = data.get("allComplaints") or data.get("myComplaints")
+                page_items = []
+                has_next = False
+                
+                if isinstance(all_comp_data, dict):
+                    page_items = all_comp_data.get("data", [])
+                    has_next = all_comp_data.get("hasNext", False)
+                elif isinstance(all_comp_data, list):
+                    page_items = all_comp_data
+                
+                if not page_items: break
+                all_items.extend(page_items)
+                if not has_next: break
+                cursor_id = page_items[-1].get("id")
+                if not cursor_id: break
+            
+            return all_items
+        except Exception:
+            return []
     def _q_get_detailed_complaint(self, token, complaint_id):
+        """Fetch detailed complaint information by ID."""
         try:
             q = self._load_gql("graphql/complaints/queries/get_detailed_complaint.graphql")
             data = self.execute_graphql(q, {"complaintId": complaint_id}, token)

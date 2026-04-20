@@ -106,7 +106,10 @@ class HomefyChatbot:
             api_key="ollama"
         )
         self.model_name = OLLAMA_MODEL
-        print(f"Using Ollama model: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
+        
+        # Avoid double-printing when Flask reloader is active
+        if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
+            print(f"Using Ollama model: {OLLAMA_MODEL} at {OLLAMA_BASE_URL}")
 
     # ── Session helpers ───────────────────────────────────────────────────────
     def _get_history(self, session_id: str) -> list[dict]:
@@ -252,33 +255,8 @@ class HomefyChatbot:
             "login" in msg_lower or "sign in" in msg_lower or "authenticate" in msg_lower
             or (len(phone_candidates) == 10 and not user_token)
         ):
-            if len(phone_candidates) == 10:
-                # User provided phone number directly after choosing role
-                from app.services import auth_service as auth
-                res = auth.send_otp(phone_candidates)
-                if "error" in res:
-                    self.session_states[session_id] = {"state": "normal"}
-                    reply = f"Failed to send OTP: {res['error']}. Let's start over."
-                else:
-                    token = res.get("result", {}).get("token") or res.get("token")
-                    self.session_states[session_id] = {
-                        "state": "awaiting_otp",
-                        "phone": phone_candidates,
-                        "temp_token": token
-                    }
-                    reply = f"I've sent a 6-digit OTP to +91-{phone_candidates}. Please enter it here."
-                self._update_history(session_id, user_message, reply)
-                return reply
-            else:
-                # Show role selection buttons first
-                options_json = [
-                    {"id": "LOGIN_AS_USER", "label": "👤 User"},
-                    {"id": "LOGIN_AS_ADMIN", "label": "🔑 Admin"}
-                ]
-                marker_str = f"__ROLE_SELECTION_MARKER__|{json.dumps(options_json)}"
-                self.session_states[session_id] = {"state": "awaiting_role_choice"}
-                self._update_history(session_id, user_message, "Are you logging in as a User or an Admin?")
-                return marker_str
+            # ALWAYS show role selection buttons first, even if they typed a phone number
+            return self._ask_role_selection(session_id, user_message, "Are you logging in as a User or an Admin?")
 
                 
         # Handle Phone Number Input
@@ -478,70 +456,92 @@ class HomefyChatbot:
         if self._is_write_request(user_message):
             if intent in ["complaints_menu", "community_complaints", "personal_complaints"]:
                 if not user_token:
-                    self.session_states[session_id] = {"state": "awaiting_phone"}
-                    reply = "🔒 You need to be logged in to raise a complaint.\n\nPlease enter your 10-digit phone number to get started."
-                    self._update_history(session_id, user_message, reply)
-                    return reply
+                    return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to raise a complaint.\n\nAre you logging in as a User or an Admin?")
                 user_role = getattr(self, "user_roles", {}).get(session_id, "")
                 admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
                 is_admin = user_role in admin_roles
-                
-                # We no longer block admins completely, we open the form and let the frontend hide the Personal option
                 marker_str = f"__COMPLAINT_FORM_MARKER__|{json.dumps({'isAdmin': is_admin})}"
                 self._update_history(session_id, user_message, "I've opened the complaint form for you. Please fill in the details and submit.")
                 return marker_str
                 
             elif intent == "amenities":
                 if not user_token:
-                    self.session_states[session_id] = {"state": "awaiting_phone"}
-                    reply = "🔒 You need to be logged in to book an amenity.\n\nPlease enter your 10-digit phone number to get started."
-                    self._update_history(session_id, user_message, reply)
-                    return reply
+                    return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to book an amenity.\n\nAre you logging in as a User or an Admin?")
                 reply = "__AMENITY_FORM_MARKER__"
                 self._update_history(session_id, user_message, "I've opened the amenity booking form for you. Please select your preferences and submit.")
                 return reply
                 
-            elif intent == "bills":
-                if not user_token:
-                    self.session_states[session_id] = {"state": "awaiting_phone"}
-                    reply = "🔒 You need to be logged in to generate a bill.\n\nPlease enter your 10-digit phone number to get started."
-                    self._update_history(session_id, user_message, reply)
-                    return reply
-                user_role = getattr(self, "user_roles", {}).get(session_id, "")
-                admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
-                if user_role not in admin_roles:
-                    reply = "🚫 Sorry, only Admins and Finance Managers can generate bills."
-                    self._update_history(session_id, user_message, reply)
-                    return reply
-                reply = "__BILL_FORM_MARKER__"
-                self._update_history(session_id, user_message, "I've opened the bill generation form for you. Please fill in the details and submit.")
-                return reply
+            # 1. Handle Module Details (Regex Detection)
+        msg_lower = user_message.lower()
+        if not self._is_write_request(user_message):
+            # Complaint Details
+            import re
+            comp_match = re.search(r'\b(com-[a-z0-9-]+)\b', msg_lower)
+            if comp_match and user_token:
+                comp_id = comp_match.group(1).upper()
+                try:
+                    detail = self.api_handler._q_get_detailed_complaint(user_token, comp_id)
+                    if detail and "error" not in detail:
+                        marker_str = f"__COMPLAINT_DETAIL_MARKER__|{json.dumps(detail)}"
+                        self._update_history(session_id, user_message, f"Opening complaint details for {comp_id}...")
+                        return marker_str
+                except Exception as e: print(f"Complaint detail error: {e}")
 
-            elif intent == "vehicles":
-                if not user_token:
-                    self.session_states[session_id] = {"state": "awaiting_phone"}
-                    reply = "🔒 You need to be logged in to create a parking category.\n\nPlease enter your 10-digit phone number to get started."
-                    self._update_history(session_id, user_message, reply)
-                    return reply
-                reply = "__PARKING_FORM_MARKER__"
-                self._update_history(session_id, user_message, "I've opened the parking category form for you. Please fill in the details and submit.")
-                return reply
+            # Bill Details
+            bill_match = re.search(r'\b(bi-[a-z0-9-]+)\b', msg_lower)
+            if bill_match and user_token:
+                bill_id = bill_match.group(1).upper()
+                try:
+                    # Fetch all bills and find the specific one
+                    raw_bills = self.api_handler._q_get_bills_raw(user_token)
+                    detail = next((b for b in raw_bills if (b.get('billId') or b.get('id','')).upper() == bill_id), None)
+                    if detail:
+                        marker_str = f"__BILL_DETAIL_MARKER__|{json.dumps(detail)}"
+                        self._update_history(session_id, user_message, f"Showing details for bill {bill_id}...")
+                        return marker_str
+                except Exception as e: print(f"Bill detail error: {e}")
 
-        # ── Normal Chat Flow ──────────────────────────────────────────────────
-        if intent == "complaints_menu" and not self._is_write_request(user_message):
+        if intent == "login":
             if not user_token:
-                self.session_states[session_id] = {"state": "awaiting_phone"}
-                reply = "🔒 You need to be logged in to view complaints.\n\nPlease enter your 10-digit phone number to get started."
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to generate a bill.\n\nAre you logging in as a User or an Admin?")
+            user_role = getattr(self, "user_roles", {}).get(session_id, "")
+            admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
+            if user_role not in admin_roles:
+                reply = "🚫 Sorry, only Admins and Finance Managers can generate bills."
                 self._update_history(session_id, user_message, reply)
                 return reply
-            
-            # Admins only see Community Complaints — Personal Complaints are flat-specific
+            reply = "__BILL_FORM_MARKER__"
+            self._update_history(session_id, user_message, "I've opened the bill generation form for you. Please fill in the details and submit.")
+            return reply
+
+        elif intent == "vehicles":
+            if not user_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to create a parking category.\n\nAre you logging in as a User or an Admin?")
+            reply = "__PARKING_FORM_MARKER__"
+            self._update_history(session_id, user_message, "I've opened the parking category form for you. Please fill in the details and submit.")
+            return reply
+
+        elif intent == "announcements":
+            if not user_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to publish announcements.\n\nAre you logging in as a User or an Admin?")
+            user_role = getattr(self, "user_roles", {}).get(session_id, "")
+            admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
+            if user_role not in admin_roles:
+                reply = "⚠️ Sorry, only admins can publish new announcements. You can view existing announcements instead."
+                self._update_history(session_id, user_message, reply)
+                return reply
+            reply = "__ANNOUNCEMENT_FORM_MARKER__"
+            self._update_history(session_id, user_message, "I've opened the announcement creation form for you. Please fill in the details and publish.")
+            return reply
+
+        # ── Normal Chat Flow (Listing/Viewing) ────────────────────────────────
+        if intent == "complaints_menu" and not self._is_write_request(user_message):
+            if not user_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view complaints.\n\nAre you logging in as a User or an Admin?")
             user_role = getattr(self, "user_roles", {}).get(session_id, "")
             admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
             if user_role in admin_roles:
-                options_json = [
-                    {"id": "COMMUNITY_COMPLAINTS_REQ", "label": "🏘️ Community Complaints"}
-                ]
+                options_json = [{"id": "COMMUNITY_COMPLAINTS_REQ", "label": "🏘️ Community Complaints"}]
             else:
                 options_json = [
                     {"id": "COMMUNITY_COMPLAINTS_REQ", "label": "🏘️ Community Complaints"},
@@ -551,13 +551,30 @@ class HomefyChatbot:
             self._update_history(session_id, user_message, "Which type of complaints would you like to view?")
             return marker_str
 
-        if intent == "vehicles" and not self._is_write_request(user_message) and "parking" in user_message.lower() and "PARKING_" not in user_message:
+        # Intercept Complaints List Requests (Visual Cards)
+        if intent in ["community_complaints", "personal_complaints"] and not self._is_write_request(user_message):
             if not user_token:
-                self.session_states[session_id] = {"state": "awaiting_phone"}
-                reply = "🔒 You need to be logged in to view parking.\n\nPlease enter your 10-digit phone number to get started."
-                self._update_history(session_id, user_message, reply)
-                return reply
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view complaints.\n\nAre you logging in as a User or an Admin?")
+            
+            try:
+                type_filter = "COMMUNITY" if intent == "community_complaints" else "PERSONAL"
+                raw_complaints = self.api_handler._q_get_complaints_raw(user_token, type_filter=type_filter)
                 
+                if raw_complaints:
+                    title_text = f"Here are the {type_filter.lower()} complaints for your community:"
+                    marker_str = f"__COMPLAINT_LIST_MARKER__|{json.dumps(raw_complaints)}"
+                    self._update_history(session_id, user_message, title_text)
+                    return marker_str
+                else:
+                    msg = f"No {type_filter.lower()} complaints found."
+                    self._update_history(session_id, user_message, msg)
+                    return msg
+            except Exception as e:
+                print(f"Complaint list error: {e}")
+
+        elif intent == "vehicles" and not self._is_write_request(user_message) and "parking" in user_message.lower():
+            if not user_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view parking.\n\nAre you logging in as a User or an Admin?")
             options_json = [
                 {"id": "PARKING_RESIDENT_REQ", "label": "Resident Parking Categories"},
                 {"id": "PARKING_OTHER_REQ", "label": "Other Parking Categories"}
@@ -566,13 +583,175 @@ class HomefyChatbot:
             self._update_history(session_id, user_message, "Which type of parking categories would you like to view?")
             return marker_str
 
-        api_context = ""
-        if intent != "general":
+        elif intent == "announcements" and not self._is_write_request(user_message):
             if not user_token:
-                self.session_states[session_id] = {"state": "awaiting_phone"}
-                reply = "🔒 You need to be logged in to view your personalized information.\n\nPlease enter your 10-digit phone number to get started."
-                self._update_history(session_id, user_message, reply)
-                return reply
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view announcements.\n\nAre you logging in as a User or an Admin?")
+
+            msg_lower = user_message.lower()
+            
+            # 1. Check if user is requesting a specific announcement by ID
+            import re
+            id_match = re.search(r'\b(cm[a-z0-9]{20,})\b', msg_lower)
+            if id_match:
+                ann_id = id_match.group(1)
+                try:
+                    detail = self.api_handler._q_get_detailed_announcement(user_token, ann_id)
+                    if detail and "error" not in detail:
+                        marker_str = f"__ANNOUNCEMENT_DETAIL_MARKER__|{json.dumps(detail)}"
+                        self._update_history(session_id, user_message, f"Opening announcement details for {ann_id}...")
+                        return marker_str
+                except Exception as e:
+                    print(f"Announcement detail error: {e}")
+
+            # 2. Show Category Selection Menu if no specific filter/ID/mine-request provided
+            is_mine = "my" in msg_lower
+            is_all_unread = "unread" in msg_lower or "all" in msg_lower
+            
+            if not is_mine and not is_all_unread:
+                options_json = [
+                    {"id": "UNREAD_ANNOUNCEMENTS_REQ", "label": "🔴 Unread Announcements"},
+                    {"id": "ALL_ANNOUNCEMENTS_REQ", "label": "📁 All Announcements"},
+                    {"id": "MY_ANNOUNCEMENTS_REQ", "label": "👤 My Announcements"}
+                ]
+                marker_str = f"__ANNOUNCEMENT_CATEGORY_MARKER__|{json.dumps(options_json)}"
+                self._update_history(session_id, user_message, "Which announcements would you like to see?")
+                return marker_str
+            
+            # 3. If they requested My/All/Unread, return the Visual List Marker
+            try:
+                is_unread = "unread" in msg_lower
+                user_id = None
+                if is_mine:
+                    profile = self.api_handler.get_profile(user_token)
+                    user_id = profile.get("me", {}).get("id")
+                
+                raw_anns = self.api_handler._q_get_announcements_raw(
+                    user_token, 
+                    unread_only=is_unread, 
+                    mine_only=is_mine, 
+                    user_id=user_id
+                )
+                
+                if raw_anns:
+                    title_text = "Here are "
+                    if is_mine: title_text += "your published "
+                    elif is_unread: title_text += "the unread "
+                    else: title_text += "the "
+                    title_text += "announcements for your community:"
+                    
+                    marker_str = f"__ANNOUNCEMENT_LIST_MARKER__|{json.dumps(raw_anns)}"
+                    self._update_history(session_id, user_message, title_text)
+                    return marker_str
+                else:
+                    msg = "No announcements found matching your request."
+                    if is_mine: msg = "You haven't published any announcements yet."
+                    elif is_unread: msg = "You're all caught up! No unread announcements."
+                    self._update_history(session_id, user_message, msg)
+                    return msg
+            except Exception as e:
+                print(f"Announcement list error: {e}")
+
+        elif intent == "amenities" and not self._is_write_request(user_message):
+            if not user_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view amenities.\n\nAre you logging in as a User or an Admin?")
+            
+            msg_lower = user_message.lower()
+            apt_id = getattr(self, "apartment_ids", {}).get(session_id, "")
+            
+            try:
+                # 1. Handle "My Bookings"
+                if "booking" in msg_lower or "my" in msg_lower:
+                    raw_bookings = self.api_handler._q_get_bookings_raw(user_token)
+                    if raw_bookings:
+                        marker_str = f"__BOOKING_LIST_MARKER__|{json.dumps(raw_bookings)}"
+                        self._update_history(session_id, user_message, "Here are your amenity bookings and receipts:")
+                        return marker_str
+                    else:
+                        msg = "You don't have any amenity bookings yet."
+                        self._update_history(session_id, user_message, msg)
+                        return msg
+                
+                # 2. Handle "All Amenities"
+                raw_amenities = self.api_handler._q_get_amenities_raw(user_token, apartment_id=apt_id)
+                if raw_amenities:
+                    marker_str = f"__AMENITY_LIST_MARKER__|{json.dumps(raw_amenities)}"
+                    self._update_history(session_id, user_message, "Here are the available amenities in your community:")
+                    return marker_str
+                else:
+                    msg = "No amenities found."
+                    self._update_history(session_id, user_message, msg)
+                    return msg
+            except Exception as e:
+                print(f"Amenity list error: {e}")
+
+
+
+        elif intent == "visitors" and not self._is_write_request(user_message):
+            if not user_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view visitors.\n\nAre you logging in as a User or an Admin?")
+            
+            try:
+                raw_visitors = self.api_handler._q_get_visitors_raw(user_token)
+                if raw_visitors:
+                    marker_str = f"__VISITOR_LIST_MARKER__|{json.dumps(raw_visitors)}"
+                    self._update_history(session_id, user_message, "Here are today's visitor entries for your community:")
+                    return marker_str
+                else:
+                    msg = "No visitor entries found for today."
+                    self._update_history(session_id, user_message, msg)
+                    return msg
+            except Exception as e:
+                print(f"Visitor list error: {e}")
+        elif intent == "bills" and not self._is_write_request(user_message):
+            if not user_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view bills.\n\nAre you logging in as a User or an Admin?")
+            
+            try:
+                raw_bills = self.api_handler._q_get_bills_raw(user_token)
+                if raw_bills:
+                    # Category Filtering Logic
+                    msg_l = user_message.lower()
+                    categories = {
+                        "rental": ["rental"],
+                        "electricity": ["electricity", "light", "elec"],
+                        "gas": ["gas"],
+                        "maintenance": ["maintenance"],
+                        "move in": ["move in"],
+                        "move out": ["move out"],
+                        "water": ["water"],
+                        "fine": ["fine"],
+                        "corpus": ["corpus"],
+                        "reimbursement": ["reimbursement"]
+                    }
+                    
+                    selected_cat = None
+                    for cat_name, keywords in categories.items():
+                        if any(k in msg_l for k in keywords):
+                            selected_cat = cat_name
+                            break
+                    
+                    if selected_cat:
+                        filtered = [b for b in raw_bills if selected_cat in (b.get('category', {}).get('name', '').lower() or '')]
+                        if filtered:
+                            marker_str = f"__BILL_LIST_MARKER__|{json.dumps(filtered)}"
+                            self._update_history(session_id, user_message, f"Here are your {selected_cat.capitalize()} bills:")
+                            return marker_str
+                        else:
+                            msg = f"I couldn't find any bills under the '{selected_cat.capitalize()}' category."
+                            self._update_history(session_id, user_message, msg)
+                            return msg
+
+                    marker_str = f"__BILL_LIST_MARKER__|{json.dumps(raw_bills)}"
+                    self._update_history(session_id, user_message, "Here is a summary of your pending and paid bills:")
+                    return marker_str
+                else:
+                    msg = "No bills found for your account."
+                    self._update_history(session_id, user_message, msg)
+                    return msg
+            except Exception as e:
+                print(f"Bill list error: {e}")
+            if not user_token:
+                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view your personalized information.\n\nAre you logging in as a User or an Admin?")
                 
             try:
                 user_role = getattr(self, "user_roles", {}).get(session_id, "RESIDENT")
@@ -605,6 +784,15 @@ class HomefyChatbot:
             display_message = "Please show me Resident parking categories."
         elif display_message == "PARKING_OTHER_REQ":
             display_message = "Please show me Other parking categories."
+        elif "SHOW_ANNOUNCEMENT_CAT_" in display_message:
+            cat_id = display_message.replace("SHOW_ANNOUNCEMENT_CAT_", "")
+            display_message = f"Please show me announcements for category ID {cat_id}."
+        elif display_message == "UNREAD_ANNOUNCEMENTS_REQ":
+            display_message = "Please show me only unread announcements."
+        elif display_message == "ALL_ANNOUNCEMENTS_REQ":
+            display_message = "Please show me all announcements."
+        elif display_message == "MY_ANNOUNCEMENTS_REQ":
+            display_message = "Please show me my own announcements."
 
         messages.append({"role": "user", "content": display_message})
 
@@ -734,7 +922,7 @@ class HomefyChatbot:
         self.session_states[session_id] = {"state": "normal"}
         
         apt_name = chosen_apt.get("name", "Unknown Apartment")
-        reply = f"✅ Awesome, you are now logged in to **{apt_name}**! What would you like to do?"
+        reply = f"✅ Awesome, you are now logged in to **{apt_name}**! What would you like to do?\n\nYou can try:\n• Show my bills\n• Raise a complaint\n• Book an amenity\n• Show today visitors"
         self._update_history(session_id, "Selected flat", reply)
         return reply
 
@@ -744,3 +932,14 @@ class HomefyChatbot:
         history.append({"role": "assistant", "content": bot_reply})
         if len(history) > MAX_HISTORY:
             self.sessions[session_id] = history[-MAX_HISTORY:]
+
+    def _ask_role_selection(self, session_id: str, user_message: str, intro_text: str):
+        """Standardizes role selection trigger."""
+        options_json = [
+            {"id": "LOGIN_AS_USER", "label": "👤 User"},
+            {"id": "LOGIN_AS_ADMIN", "label": "🔑 Admin"}
+        ]
+        marker_str = f"__ROLE_SELECTION_MARKER__|{json.dumps(options_json)}"
+        self.session_states[session_id] = {"state": "awaiting_role_choice"}
+        self._update_history(session_id, user_message, intro_text)
+        return marker_str

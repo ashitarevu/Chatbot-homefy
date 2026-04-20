@@ -8,6 +8,9 @@ query AllAnnouncements($filter: AnnouncementFilterInput!) {
       announcementCategory {
         name
       }
+      createdBy {
+        id
+      }
       createdAt
       isRead
     }

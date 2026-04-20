@@ -19,6 +19,33 @@ class AmenityMixin:
         except Exception as e:
             return f"[My Amenity Bookings]: unavailable ({e})"
 
+    def _q_get_amenities_raw(self, token, apartment_id=""):
+        """Fetch all amenities as a raw list."""
+        try:
+            q = self._load_gql("graphql/amenities/queries/all_amenities.graphql")
+            variables = {"filter": {"perPage": 30}}
+            data = self.execute_graphql(q, variables, token, apartment_id=apartment_id)
+            if "error" in data: return []
+            return data.get("allAmenities", {}).get("data", [])
+        except Exception:
+            return []
+
+    def _q_get_bookings_raw(self, token):
+        """Fetch current user's amenity bookings as raw data."""
+        try:
+            q = self._load_gql("graphql/amenities/queries/all_bookings.graphql")
+            res = self.execute_graphql(q, {"filter": {}}, token)
+            bookings_data = res.get("allBookings", {})
+            items = bookings_data.get("data", []) if isinstance(bookings_data, dict) else []
+            # Inject receipts
+            for b in items:
+                b_id = b.get("id")
+                if b_id:
+                    b["receiptUrl"] = f"https://api-staging.homefy.co.in/receipts/bills/{b_id}?type=amenity"
+            return items
+        except Exception:
+            return []
+
     def _q_all_bookings(self, token, status: str = "CONFIRMED", page: int = 1, per_page: int = 10):
         """Fetch all amenity bookings for admins with optional status filter and pagination."""
         q = self._load_gql("graphql/amenities/queries/all_bookings.graphql")

@@ -1,0 +1,10 @@
+query GetCategories($filter: FilterCategoryInput!) {
+  allCategories(filter: $filter) {
+    data {
+      id
+      name
+    }
+    count
+    hasNext
+  }
+}

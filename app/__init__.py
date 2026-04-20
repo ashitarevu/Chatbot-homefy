@@ -18,7 +18,7 @@ def create_app():
     # Register Blueprints
     from app.routes import (
         auth_bp, complaint_bp, amenity_bp, finance_bp,
-        meeting_parking_bp, chat_bp, view_bp
+        meeting_parking_bp, chat_bp, view_bp, announcement_bp
     )
     
     app.register_blueprint(auth_bp)
@@ -28,5 +28,6 @@ def create_app():
     app.register_blueprint(meeting_parking_bp)
     app.register_blueprint(chat_bp)
     app.register_blueprint(view_bp)
+    app.register_blueprint(announcement_bp)
     
     return app

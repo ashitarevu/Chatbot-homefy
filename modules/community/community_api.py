@@ -5,22 +5,19 @@ class CommunityMixin:
         q = self._load_gql("graphql/community/queries/all_entries_by_date.graphql")
         return self._fmt(self.execute_graphql(q, {}, token), "Visitor Entries Today")
 
-    def _q_all_announcements(self, token, unread_only=False):
-        q = self._load_gql("graphql/announcements/queries/all_announcements.graphql")
-        filter_vars = {}
-        if unread_only:
-            filter_vars["getUnread"] = True
-        return self._fmt(self.execute_graphql(q, {"filter": filter_vars}, token), "Unread Announcements" if unread_only else "Announcements")
-
-    def _q_get_detailed_announcement(self, token, announcement_id):
+    def _q_get_visitors_raw(self, token):
+        """Fetch visitor entries for today as a raw list."""
         try:
-            q = self._load_gql("graphql/announcements/queries/get_detailed_announcement.graphql")
-            data = self.execute_graphql(q, {"announcementId": announcement_id}, token)
-            if "error" in data:
-                return {"error": data["error"]}
-            return data.get("announcement", {})
-        except Exception as e:
-            return {"error": str(e)}
+            q = self._load_gql("graphql/community/queries/all_entries_by_date.graphql")
+            data = self.execute_graphql(q, {}, token)
+            if "error" in data: return []
+            entries_obj = data.get("allEntriesByDate")
+            if isinstance(entries_obj, dict):
+                return entries_obj.get("data", [])
+            return []
+        except Exception:
+            return []
+
 
     def _q_vehicles(self, token, role):
         if role in ["OWNER", "TENANT", "OWNER_FAMILY", "RESIDENT"]:

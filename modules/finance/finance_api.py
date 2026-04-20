@@ -7,6 +7,16 @@ class FinanceMixin:
         q = self._load_gql("graphql/community/queries/my_bills.graphql")
         return self._fmt(self.execute_graphql(q, {}, token), "My Bills (Maintenance)")
 
+    def _q_get_bills_raw(self, token):
+        """Fetch all user bills as raw data."""
+        try:
+            q = self._load_gql("graphql/community/queries/my_bills.graphql")
+            res = self.execute_graphql(q, {}, token)
+            bills_obj = res.get("myBills", {})
+            return bills_obj.get("data", []) if isinstance(bills_obj, dict) else []
+        except Exception:
+            return []
+
     def _q_bill_categories_raw(self, token) -> list:
         """Fetch all bill categories (type=BILL) — Rental, Electricity, Gas Bill, etc."""
         try:

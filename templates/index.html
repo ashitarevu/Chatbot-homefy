@@ -8,6 +8,259 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <style>
+    /* ── Announcement Cards ──────────────────────────────── */
+    .announcement-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 4px 0;
+    }
+    .announcement-card {
+      background: white;
+      border: 1px solid #eef2f6;
+      border-radius: 12px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      position: relative;
+    }
+    .announcement-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border-color: var(--primary);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: capitalize;
+    }
+    .tag-society { background: #fdf2f8; color: #db2777; }
+    .tag-emergency { background: #fef2f2; color: #dc2626; }
+    .tag-meeting { background: #fffbeb; color: #d97706; }
+    .tag-sos { background: #fef2f2; color: #dc2626; }
+    
+    .card-date {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .unread-badge {
+      background: #e11d48;
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+    }
+    .card-title {
+      font-weight: 600;
+      font-size: 15px;
+      color: #1e293b;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+    .card-sneak {
+      font-size: 13px;
+      color: #64748b;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Detail View */
+    .announcement-detail {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px;
+        border: 1px solid #e2e8f0;
+    }
+    .detail-header { border-bottom: 1px solid #f1f5f9; padding-bottom: 12px; margin-bottom: 16px; }
+    .detail-title { font-size: 18px; font-weight: 700; color: #0f172a; margin: 8px 0; }
+    .detail-body { font-size: 14px; color: #334155; line-height: 1.6; white-space: pre-wrap; }
+    .detail-attachments { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .attachment-pill {
+        display: flex; align-items: center; gap: 6px;
+        background: #f8fafc; border: 1px solid #e2e8f0;
+        padding: 6px 12px; border-radius: 8px;
+        font-size: 12px; color: #475569; text-decoration: none;
+    }
+    .attachment-pill:hover { background: #f1f5f9; }
+
+    /* ── Complaint Cards ──────────────────────────────── */
+    .complaint-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 4px 0;
+    }
+    .complaint-card {
+      background: white;
+      border: 1px solid #eef2f6;
+      border-radius: 12px;
+      padding: 16px;
+      cursor: default;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      position: relative;
+    }
+    .complaint-card:hover { border-color: var(--primary); }
+    
+    .status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    .status-pending { background: #fff7ed; color: #c2410c; }
+    .status-resolved { background: #f0fdf4; color: #15803d; }
+    .status-rejected { background: #fef2f2; color: #b91c1c; }
+    .status-default { background: #f8fafc; color: #475569; }
+
+    .urgent-tag {
+      background: #e11d48;
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+    }
+
+    .complaint-id {
+      font-family: monospace;
+      font-size: 11px;
+      color: #94a3b8;
+    }
+    .complaint-category {
+      font-weight: 700;
+      font-size: 15px;
+      color: #1e293b;
+      margin: 4px 0;
+    }
+    .complaint-creator {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* ── Amenity & Booking Cards ───────────────────────── */
+    .amenity-card, .booking-card {
+      background: white;
+      border: 1px solid #eef2f6;
+      border-radius: 12px;
+      padding: 16px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .amenity-card:hover, .booking-card:hover { border-color: var(--primary); }
+    
+    .amenity-name, .booking-name {
+      font-weight: 700;
+      font-size: 15px;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    .amenity-loc, .booking-time {
+      font-size: 12px;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .booking-status {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .receipt-link {
+        font-size: 12px;
+        color: var(--primary);
+        font-weight: 600;
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-top: 10px;
+    }
+    .receipt-link:hover { text-decoration: underline; }
+
+    /* ── Visitor Cards ────────────────────────────────── */
+    .visitor-card {
+      background: white;
+      border: 1px solid #eef2f6;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    }
+    .visitor-name {
+      font-weight: 700;
+      font-size: 15px;
+      color: #1e293b;
+      margin-bottom: 4px;
+    }
+    .visitor-info {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .visitor-type {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #f1f5f9;
+      color: #475569;
+      text-transform: uppercase;
+    }
+
+    /* ── Bill Cards ───────────────────────────────────── */
+    .bill-card {
+      background: white;
+      border: 1px solid #eef2f6;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+      position: relative;
+    }
+    .bill-amount {
+      font-size: 20px;
+      font-weight: 800;
+      color: #1e293b;
+      margin: 8px 0;
+    }
+    .bill-meta {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .overdue-label {
+      color: #e11d48;
+      font-weight: 700;
+      font-size: 10px;
+      text-transform: uppercase;
+      margin-left: 8px;
+    }
+  </style>
 </head>
 <body>
 
@@ -24,7 +277,7 @@
     <header class="chat-header">
       <div class="header-left">
         <div class="avatar-wrap">
-          <div class="bot-avatar">🏠</div>
+          <div class="bot-avatar"><svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:1.5em;height:1.5em;display:block;margin:auto;"><defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E21B70"/><stop offset="100%" stop-color="#7B1A66"/></linearGradient><mask id="h-mask"><rect width="100" height="100" fill="white"/><path d="M 71 14 C 52 18, 52 35, 59 44 C 72 44, 78 28, 71 14 Z" stroke="black" stroke-width="3" fill="none"/><path d="M 58 42 C 60 32, 62 25, 68 18" stroke="black" stroke-width="1.5" stroke-linecap="round" fill="none"/></mask></defs><g mask="url(#h-mask)"><path d="M 34 22 C 18 22, 18 32, 18 50 L 18 70 C 18 88, 27 92, 34 92 Z" fill="url(#hg)"/><path d="M 32 48 L 58 48 C 64 48, 70 50, 76 34 C 78 50, 75 75, 75 80 C 75 92, 65 95, 58 95 L 58 65 C 58 60, 52 62, 45 62 L 32 62 Z" fill="url(#hg)"/><path d="M 71 14 C 52 18, 52 35, 59 44 C 72 44, 78 28, 71 14 Z" fill="url(#hg)"/></g></svg></div>
           <span class="status-dot"></span>
         </div>
         <div class="header-info">
@@ -47,7 +300,7 @@
 
       <!-- Welcome card -->
       <div class="welcome-card" id="welcomeCard">
-        <div class="welcome-icon">🏠</div>
+        <div class="welcome-icon"><svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:1.5em;height:1.5em;display:block;margin:auto;"><defs><linearGradient id="hg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E21B70"/><stop offset="100%" stop-color="#7B1A66"/></linearGradient><mask id="h-mask2"><rect width="100" height="100" fill="white"/><path d="M 71 14 C 52 18, 52 35, 59 44 C 72 44, 78 28, 71 14 Z" stroke="black" stroke-width="3" fill="none"/><path d="M 58 42 C 60 32, 62 25, 68 18" stroke="black" stroke-width="1.5" stroke-linecap="round" fill="none"/></mask></defs><g mask="url(#h-mask2)"><path d="M 34 22 C 18 22, 18 32, 18 50 L 18 70 C 18 88, 27 92, 34 92 Z" fill="url(#hg2)"/><path d="M 32 48 L 58 48 C 64 48, 70 50, 76 34 C 78 50, 75 75, 75 80 C 75 92, 65 95, 58 95 L 58 65 C 58 60, 52 62, 45 62 L 32 62 Z" fill="url(#hg2)"/><path d="M 71 14 C 52 18, 52 35, 59 44 C 72 44, 78 28, 71 14 Z" fill="url(#hg2)"/></g></svg></div>
         <h2>Hi! I'm your Homefy Assistant</h2>
         <p>I can help you with bookings, complaints, visitors, bills, and much more.</p>
         <div class="quick-chips">
@@ -58,7 +311,7 @@
           <button class="chip" onclick="sendQuick('Show my bills')">💳 My Bills</button>
           <button class="chip" onclick="sendQuick('Show today visitors')">🚶 Visitors Today</button>
           <button class="chip" onclick="sendQuick('Any announcements?')">📢 Announcements</button>
-          <button class="chip" onclick="sendQuick('Show my reward coins')">🪙 Rewards</button>
+
         </div>
       </div>
 
@@ -66,7 +319,7 @@
 
     <!-- ── Typing indicator (hidden by default) ── -->
     <div class="typing-row" id="typingRow" style="display:none">
-      <div class="bot-avatar-sm">🏠</div>
+      <div class="bot-avatar-sm"><svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:1.5em;height:1.5em;display:block;margin:auto;"><defs><linearGradient id="hg3" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E21B70"/><stop offset="100%" stop-color="#7B1A66"/></linearGradient><mask id="h-mask3"><rect width="100" height="100" fill="white"/><path d="M 71 14 C 52 18, 52 35, 59 44 C 72 44, 78 28, 71 14 Z" stroke="black" stroke-width="3" fill="none"/><path d="M 58 42 C 60 32, 62 25, 68 18" stroke="black" stroke-width="1.5" stroke-linecap="round" fill="none"/></mask></defs><g mask="url(#h-mask3)"><path d="M 34 22 C 18 22, 18 32, 18 50 L 18 70 C 18 88, 27 92, 34 92 Z" fill="url(#hg3)"/><path d="M 32 48 L 58 48 C 64 48, 70 50, 76 34 C 78 50, 75 75, 75 80 C 75 92, 65 95, 58 95 L 58 65 C 58 60, 52 62, 45 62 L 32 62 Z" fill="url(#hg3)"/><path d="M 71 14 C 52 18, 52 35, 59 44 C 72 44, 78 28, 71 14 Z" fill="url(#hg3)"/></g></svg></div>
       <div class="typing-bubble">
         <span></span><span></span><span></span>
       </div>
@@ -118,6 +371,7 @@
     const statusText = document.getElementById('statusText');
 
     let isSending = false;
+    const homefyLogoSvg = `<svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:1.5em;height:1.5em;display:block;margin:auto;"><defs><linearGradient id="hgs" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E21B70"/><stop offset="100%" stop-color="#7B1A66"/></linearGradient><mask id="h-masks"><rect width="100" height="100" fill="white"/><path d="M 71 14 C 52 18, 52 35, 59 44 C 72 44, 78 28, 71 14 Z" stroke="black" stroke-width="3" fill="none"/><path d="M 58 42 C 60 32, 62 25, 68 18" stroke="black" stroke-width="1.5" stroke-linecap="round" fill="none"/></mask></defs><g mask="url(#h-masks)"><path d="M 34 22 C 18 22, 18 32, 18 50 L 18 70 C 18 88, 27 92, 34 92 Z" fill="url(#hgs)"/><path d="M 32 48 L 58 48 C 64 48, 70 50, 76 34 C 78 50, 75 75, 75 80 C 75 92, 65 95, 58 95 L 58 65 C 58 60, 52 62, 45 62 L 32 62 Z" fill="url(#hgs)"/><path d="M 71 14 C 52 18, 52 35, 59 44 C 72 44, 78 28, 71 14 Z" fill="url(#hgs)"/></g></svg>`;
 
     // ── Helpers ────────────────────────────────────────────────────────────
     function getTimestamp() {
@@ -141,7 +395,7 @@
 
     function appendMessage(role, text) {
       // ── Complaint Form Detection ──────────────────────────────────
-      if (role === 'bot' && text.startsWith('__COMPLAINT_FORM_MARKER__')) {
+      if (role === 'bot' && text.trim().startsWith('__COMPLAINT_FORM_MARKER__')) {
         let isAdmin = false;
         if (text.includes('|')) {
           try {
@@ -163,9 +417,9 @@
         return;
       }
       // ── Apartment Selection Detection ──────────────────────────────────
-      if (role === 'bot' && text.startsWith('__APARTMENT_SELECTION_MARKER__|')) {
+      if (role === 'bot' && text.trim().startsWith('__APARTMENT_SELECTION_MARKER__|')) {
         try {
-          const payload = JSON.parse(text.split('|')[1]);
+          const payload = JSON.parse(text.trim().split('|')[1]);
           renderApartmentSelection(payload);
         } catch (e) {
           console.error("Failed to parse apartment selection marker", e);
@@ -174,9 +428,9 @@
       }
       
       // ── Flat Selection Detection ──────────────────────────────────
-      if (role === 'bot' && text.startsWith('__FLAT_SELECTION_MARKER__|')) {
+      if (role === 'bot' && text.trim().startsWith('__FLAT_SELECTION_MARKER__|')) {
         try {
-          const payload = JSON.parse(text.split('|')[1]);
+          const payload = JSON.parse(text.trim().split('|')[1]);
           renderFlatSelection(payload);
         } catch (e) {
           console.error("Failed to parse flat selection marker", e);
@@ -185,9 +439,9 @@
       }
 
       // ── Role Selection Detection ──────────────────────────────────
-      if (role === 'bot' && text.startsWith('__ROLE_SELECTION_MARKER__|')) {
+      if (role === 'bot' && text.trim().startsWith('__ROLE_SELECTION_MARKER__|')) {
         try {
-          const payload = JSON.parse(text.split('|')[1]);
+          const payload = JSON.parse(text.trim().split('|')[1]);
           renderRoleSelection(payload);
         } catch (e) {
           console.error("Failed to parse role selection marker", e);
@@ -196,9 +450,9 @@
       }
 
       // ── Meeting Selection Detection ──────────────────────────────────
-      if (role === 'bot' && text.startsWith('__MEETING_SELECTION_MARKER__|')) {
+      if (role === 'bot' && text.trim().startsWith('__MEETING_SELECTION_MARKER__|')) {
         try {
-          const payload = JSON.parse(text.split('|')[1]);
+          const payload = JSON.parse(text.trim().split('|')[1]);
           renderMeetingSelection(payload);
         } catch (e) {
           console.error("Failed to parse meeting selection marker", e);
@@ -212,16 +466,132 @@
         return;
       }
 
+      // ── Announcement Category Detection ──────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__ANNOUNCEMENT_CATEGORY_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderAnnouncementCategory(payload);
+        } catch (e) {
+          console.error("Failed to parse announcement category marker", e);
+        }
+        return;
+      }
+
+      // ── Announcement List Detection ──────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__ANNOUNCEMENT_LIST_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderAnnouncementList(payload);
+        } catch (e) {
+          console.error("Failed to parse announcement list marker", e);
+        }
+        return;
+      }
+
+      // ── Complaint List Detection ──────────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__COMPLAINT_LIST_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderComplaintList(payload);
+        } catch (e) {
+          console.error("Failed to parse complaint list marker", e);
+        }
+        return;
+      }
+
+      // ── Amenity List Detection ──────────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__AMENITY_LIST_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderAmenityList(payload);
+        } catch (e) {
+          console.error("Failed to parse amenity list marker", e);
+        }
+        return;
+      }
+
+      // ── Booking List Detection ──────────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__BOOKING_LIST_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderBookingList(payload);
+        } catch (e) {
+          console.error("Failed to parse booking list marker", e);
+        }
+        return;
+      }
+
+      // ── Visitor List Detection ──────────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__VISITOR_LIST_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderVisitorList(payload);
+        } catch (e) {
+          console.error("Failed to parse visitor list marker", e);
+        }
+        return;
+      }
+
+      // ── Bill List Detection ──────────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__BILL_LIST_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderBillList(payload);
+        } catch (e) {
+          console.error("Failed to parse bill list marker", e);
+        }
+        return;
+      }
+
+      // ── Complaint Detail Detection ──────────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__COMPLAINT_DETAIL_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderComplaintDetail(payload);
+        } catch (e) {
+          console.error("Failed to parse complaint detail marker", e);
+        }
+        return;
+      }
+
+      // ── Bill Detail Detection ──────────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__BILL_DETAIL_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderBillDetail(payload);
+        } catch (e) {
+          console.error("Failed to parse bill detail marker", e);
+        }
+        return;
+      }
+
+      // ── Announcement Detail Detection ──────────────────────────────────
+      if (role === 'bot' && text.trim().startsWith('__ANNOUNCEMENT_DETAIL_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.trim().split('|')[1]);
+          renderAnnouncementDetail(payload);
+        } catch (e) {
+          console.error("Failed to parse announcement detail marker", e);
+        }
+        return;
+      }
+
       // ── Parking Form Detection ──────────────────────────────────
       if (role === 'bot' && text.trim() === '__PARKING_FORM_MARKER__') {
         renderParkingForm();
         return;
       }
 
+      // ── Announcement Form Detection ──────────────────────────────────
+      if (role === 'bot' && text.trim() === '__ANNOUNCEMENT_FORM_MARKER__') {
+        renderAnnouncementForm();
+        return;
+      }
+
       // ── Complaint Type Selection Detection ──────────────────────────────────
-      if (role === 'bot' && text.startsWith('__COMPLAINT_TYPE_MARKER__|')) {
+      if (role === 'bot' && text.trim().startsWith('__COMPLAINT_TYPE_MARKER__|')) {
         try {
-          const payload = JSON.parse(text.split('|')[1]);
+          const payload = JSON.parse(text.trim().split('|')[1]);
           renderGenericSelection(payload, '📋 Complaint Type', 'Please select the type of complaints to view:');
         } catch (e) {}
         return;
@@ -232,6 +602,15 @@
         try {
           const payload = JSON.parse(text.split('|')[1]);
           renderGenericSelection(payload, '🅿️ Parking Categories', 'Which type of parking categories would you like to view?');
+        } catch (e) {}
+        return;
+      }
+
+      // ── Announcement Category Selection Detection ───────────────────────────
+      if (role === 'bot' && text.startsWith('__ANNOUNCEMENT_CATEGORY_MARKER__|')) {
+        try {
+          const payload = JSON.parse(text.split('|')[1]);
+          renderGenericSelection(payload, '📢 Announcement Categories', 'Which category of announcements would you like to see?');
         } catch (e) {}
         return;
       }
@@ -250,7 +629,7 @@
       if (role === 'bot') {
         const av = document.createElement('div');
         av.className = 'bot-avatar-sm';
-        av.textContent = '🏠';
+        av.innerHTML = homefyLogoSvg;
         row.appendChild(av);
       }
 
@@ -304,7 +683,7 @@
 
       const av = document.createElement('div');
       av.className = 'bot-avatar-sm';
-      av.textContent = '🏠';
+      av.innerHTML = homefyLogoSvg;
       row.appendChild(av);
 
       const inner = document.createElement('div');
@@ -372,7 +751,7 @@
 
       const av = document.createElement('div');
       av.className = 'bot-avatar-sm';
-      av.textContent = '🏠';
+      av.innerHTML = homefyLogoSvg;
       row.appendChild(av);
 
       const inner = document.createElement('div');
@@ -434,7 +813,7 @@
 
       const av = document.createElement('div');
       av.className = 'bot-avatar-sm';
-      av.textContent = '🏠';
+      av.innerHTML = homefyLogoSvg;
       row.appendChild(av);
 
       const inner = document.createElement('div');
@@ -499,7 +878,7 @@
 
       const av = document.createElement('div');
       av.className = 'bot-avatar-sm';
-      av.textContent = '🏠';
+      av.innerHTML = homefyLogoSvg;
       row.appendChild(av);
 
       const inner = document.createElement('div');
@@ -563,7 +942,7 @@
 
       const av = document.createElement('div');
       av.className = 'bot-avatar-sm';
-      av.textContent = '🏠';
+      av.innerHTML = homefyLogoSvg;
       row.appendChild(av);
 
       const inner = document.createElement('div');
@@ -714,7 +1093,7 @@
 
       const av = document.createElement('div');
       av.className = 'bot-avatar-sm';
-      av.textContent = '🏠';
+      av.innerHTML = homefyLogoSvg;
       row.appendChild(av);
 
       const inner = document.createElement('div');
@@ -974,7 +1353,7 @@
 
       const av = document.createElement('div');
       av.className = 'bot-avatar-sm';
-      av.textContent = '🏠';
+      av.innerHTML = homefyLogoSvg;
       row.appendChild(av);
 
       const inner = document.createElement('div');
@@ -1173,7 +1552,7 @@
 
       const av = document.createElement('div');
       av.className = 'bot-avatar-sm';
-      av.textContent = '🏠';
+      av.innerHTML = homefyLogoSvg;
       row.appendChild(av);
 
       const inner = document.createElement('div');
@@ -1446,6 +1825,167 @@
       }
     }
 
+    // ── Announcement Creation Flow ────────────────────────────────────
+    async function renderAnnouncementForm() {
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      row.id = 'announcementFormRow';
+
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.innerHTML = homefyLogoSvg;
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+
+      const card = document.createElement('div');
+      card.className = 'complaint-form-card';
+      card.style.borderLeft = '4px solid #b31b44'; // Use the theme color from the screenshot
+      card.innerHTML = `
+        <div class="complaint-form-header">
+          <div class="cform-title">Add Announcement</div>
+          <p class="cform-subtitle">Create a community-wide update with attachments.</p>
+        </div>
+        <div class="complaint-form-body">
+          
+          <div style="display:flex; gap:16px; margin-bottom:16px;">
+            <div class="cform-group" style="flex:1">
+              <label class="cform-label">Announcement Title <span class="required">*</span></label>
+              <input type="text" class="cform-input" id="afTitle" placeholder="Announcement Title" />
+              <div class="cform-error" id="afTitleError">Please provide a title</div>
+            </div>
+            <div class="cform-group" style="flex:1">
+              <label class="cform-label">Announcement Category <span class="required">*</span></label>
+              <select class="cform-select" id="afCategory">
+                <option value="" disabled selected>Announcement Category</option>
+              </select>
+              <div class="cform-error" id="afCategoryError">Please select a category</div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:16px; margin-bottom:16px;">
+            <div class="cform-group" style="width:50%">
+              <label class="cform-label">Announcement Type <span class="required">*</span></label>
+              <select class="cform-select" id="afType">
+                <option value="ALL">ALL</option>
+                <option value="RESIDENT">RESIDENTS ONLY</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cform-group">
+            <label class="cform-label">Description <span class="required">*</span></label>
+            <textarea class="cform-textarea" id="afDescription" placeholder="Description" style="height:80px"></textarea>
+            <div class="cform-error" id="afDescriptionError">Please provide a description</div>
+          </div>
+
+          <div class="cform-group">
+            <label class="cform-label">File Attachment (optional)</label>
+            <div style="border: 1px dashed #ccc; border-radius: 8px; padding: 20px; text-align: center; color: #666; font-size: 14px; background: #fafafa;">
+              <div style="margin-bottom: 8px;">📤 Drag and drop file here or click to browse</div>
+              <div style="font-size: 12px; color: #999;">Choose Images less than 150KB</div>
+            </div>
+          </div>
+
+          <div class="cform-actions" style="justify-content: flex-end; gap: 12px;">
+            <button class="cform-cancel" onclick="cancelAnnouncementForm()" style="border: 1px solid #b31b44; color: #b31b44; background: white; border-radius: 8px; padding: 8px 24px;">Cancel</button>
+            <button class="cform-submit" id="afSubmitBtn" onclick="submitAnnouncementForm()" style="background: #b31b44; color: white; border-radius: 8px; padding: 8px 24px; border: none; font-weight: 500;">Add</button>
+          </div>
+        </div>
+      `;
+
+      inner.appendChild(card);
+      row.appendChild(inner);
+      chatBody.appendChild(row);
+      scrollToBottom();
+      loadAnnouncementCategories();
+    }
+
+    async function loadAnnouncementCategories() {
+      const sel = document.getElementById('afCategory');
+      if (!sel) return;
+      try {
+        const res = await fetch(`/api/announcements/categories?session_id=${encodeURIComponent(sessionId)}`);
+        const data = await res.json();
+        const cats = data.categories || [];
+        sel.innerHTML = '<option value="" disabled selected>Select category...</option>';
+        cats.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.id;
+          opt.textContent = c.name;
+          sel.appendChild(opt);
+        });
+      } catch {
+        sel.innerHTML = '<option value="" disabled selected>Failed to load categories</option>';
+      }
+    }
+
+    async function submitAnnouncementForm() {
+      const title = document.getElementById('afTitle').value.trim();
+      const catId = document.getElementById('afCategory').value;
+      const desc = document.getElementById('afDescription').value.trim();
+      const type = document.getElementById('afType').value;
+      const btn = document.getElementById('afSubmitBtn');
+      const errTitle = document.getElementById('afTitleError');
+      const errCat = document.getElementById('afCategoryError');
+      const errDesc = document.getElementById('afDescriptionError');
+
+      // Reset errors
+      errTitle.style.display = 'none';
+      errCat.style.display = 'none';
+      errDesc.style.display = 'none';
+
+      let valid = true;
+      if (!title) { errTitle.style.display = 'block'; valid = false; }
+      if (!catId) { errCat.style.display = 'block'; valid = false; }
+      if (!desc) { errDesc.style.display = 'block'; valid = false; }
+      if (!valid) return;
+
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/announcements/create', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            session_id: sessionId,
+            title: title,
+            category_id: catId,
+            description: desc,
+            type: type
+          })
+        });
+        const data = await res.json();
+        btn.classList.remove('loading');
+
+        if (data.status === 'success') {
+          const row = document.getElementById('announcementFormRow');
+          row.style.opacity = '0.6';
+          row.style.pointerEvents = 'none';
+          appendMessage('bot', `✅ **${data.message}**\n\nThe update has been published to all residents.`);
+        } else {
+          alert('Error: ' + data.message);
+          btn.disabled = false;
+        }
+      } catch (e) {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+        alert('Failed to connect to server.');
+      }
+    }
+
+    function cancelAnnouncementForm() {
+      const formRow = document.getElementById('announcementFormRow');
+      if (formRow) {
+        formRow.style.transition = 'all 0.3s ease';
+        formRow.style.opacity = '0';
+        formRow.style.transform = 'translateY(-10px)';
+        setTimeout(() => formRow.remove(), 300);
+      }
+    }
+
     // ── Individual Bill Form Logic ────────────────────────────────────
     function renderBillForm() {
       const row = document.createElement('div');
@@ -1454,7 +1994,7 @@
 
       const av = document.createElement('div');
       av.className = 'bot-avatar-sm';
-      av.textContent = '🏠';
+      av.innerHTML = homefyLogoSvg;
       row.appendChild(av);
 
       const inner = document.createElement('div');
@@ -1648,6 +2188,580 @@
         btn.classList.remove('loading');
         btn.disabled = false;
       }
+    }
+
+    // ── Announcement UI Helpers ──────────────────────────────────────────
+    function formatAnnDate(dStr) {
+        if (!dStr) return "";
+        const d = new Date(dStr);
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const day = d.getDate();
+        const month = months[d.getMonth()];
+        let h = d.getHours();
+        const m = d.getMinutes().toString().padStart(2, '0');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        h = h % 12;
+        h = h ? h : 12;
+        return `${day} ${month}, ${h}:${m} ${ampm}`;
+    }
+
+    function renderAnnouncementCategory(options) {
+      if (!options || !options.length) return;
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.innerHTML = homefyLogoSvg;
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      bubble.innerHTML = `<strong>📢 Announcement Categories</strong><br/>Which announcements would you like to see?`;
+      
+      const chipsBody = document.createElement('div');
+      chipsBody.className = 'quick-chips';
+      chipsBody.style.marginTop = '12px';
+      options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'chip';
+        btn.innerHTML = `${opt.label}`;
+        btn.onclick = () => { btn.disabled = true; sendQuick(opt.label); };
+        chipsBody.appendChild(btn);
+      });
+      bubble.appendChild(chipsBody);
+      inner.appendChild(bubble);
+
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+      chatBody.appendChild(row);
+      scrollToBottom();
+    }
+
+    function renderAnnouncementList(anns) {
+      if (!anns || !anns.length) return;
+      hideWelcome();
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.innerHTML = homefyLogoSvg;
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      
+      const listContainer = document.createElement('div');
+      listContainer.className = 'announcement-list';
+      listContainer.style.width = '100%';
+      
+      anns.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'announcement-card';
+        const catName = a.announcementCategory?.name || 'General';
+        const catClass = `tag-${catName.toLowerCase()}`;
+        
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="tag ${catClass}">${catName}</span>
+                <div style="display:flex; align-items:center">
+                    <span class="card-date">${formatAnnDate(a.createdAt)}</span>
+                    ${!a.isRead ? '<span class="unread-badge">New</span>' : ''}
+                </div>
+            </div>
+            <div class="card-title">${a.title}</div>
+            <div class="card-sneak">${a.description || ''}</div>
+        `;
+        card.onclick = () => {
+            sendQuick(`${window.location.protocol === 'file:' ? '' : 'View announcement details: '}${a.id}`);
+        };
+        listContainer.appendChild(card);
+      });
+      
+      inner.appendChild(listContainer);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+      chatBody.appendChild(row);
+      scrollToBottom();
+    }
+
+    function renderAnnouncementDetail(a) {
+      if (!a) return;
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.innerHTML = homefyLogoSvg;
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      
+      const detail = document.createElement('div');
+      detail.className = 'announcement-detail';
+      const catName = a.announcementCategory?.name || 'General';
+      const catClass = `tag-${catName.toLowerCase()}`;
+      
+      let attachmentsHtml = '';
+      if (a.attachments && a.attachments.length > 0) {
+          attachmentsHtml = '<div class="detail-attachments">';
+          a.attachments.forEach(at => {
+              attachmentsHtml += `
+                <a href="${at.url}" target="_blank" class="attachment-pill">
+                    <span>📎</span> ${at.fileName}
+                </a>
+              `;
+          });
+          attachmentsHtml += '</div>';
+      }
+
+      detail.innerHTML = `
+        <div class="detail-header">
+            <span class="tag ${catClass}">${catName}</span>
+            <span class="card-date" style="margin-left:12px">${formatAnnDate(a.createdAt)}</span>
+        </div>
+        <div class="detail-title">${a.title}</div>
+        <div class="detail-body">${a.description}</div>
+        ${attachmentsHtml}
+      `;
+      
+      inner.appendChild(detail);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+      chatBody.appendChild(row);
+      scrollToBottom();
+    }
+
+    function renderComplaintList(complaints) {
+      if (!complaints || !complaints.length) return;
+      hideWelcome();
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.innerHTML = homefyLogoSvg;
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      
+      const listContainer = document.createElement('div');
+      listContainer.className = 'complaint-list';
+      listContainer.style.width = '100%';
+      
+      complaints.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'complaint-card';
+        
+        const status = (c.status || 'PENDING').toUpperCase();
+        let statusClass = 'status-default';
+        if (status === 'PENDING') statusClass = 'status-pending';
+        else if (status === 'RESOLVED' || status === 'CLOSED') statusClass = 'status-resolved';
+        else if (status === 'REJECTED' || status === 'CANCELLED') statusClass = 'status-rejected';
+
+        const catName = c.category?.name || 'General';
+        const c_id = c.complaintId || c.id || 'Unknown';
+        
+        // Handle creator info safely
+        const cb = c.createdBy || {};
+        const cb_usr = cb.user || {};
+        const creatorName = `${cb_usr.firstName || ''} ${cb_usr.lastName || ''}`.trim() || 'Unknown User';
+        
+        let flatInfo = '';
+        const cb_flat = cb.flat || {};
+        if (cb_flat.flatNumber) {
+            const bName = cb_flat.block?.blockName || '';
+            flatInfo = bName ? ` (${bName}-${cb_flat.flatNumber})` : ` (Flat ${cb_flat.flatNumber})`;
+        }
+
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="complaint-id">${c_id}</span>
+                <div style="display:flex; align-items:center">
+                    <span class="status-badge ${statusClass}">${status}</span>
+                    ${c.isUrgent ? '<span class="urgent-tag">Urgent</span>' : ''}
+                </div>
+            </div>
+            <div class="complaint-category">${catName}</div>
+            <div class="card-sneak">${c.title || c.description || ''}</div>
+            <div class="complaint-creator">
+                <span>👤</span> ${creatorName}${flatInfo}
+                <span style="margin-left:auto;font-size:11px;opacity:0.8">${formatAnnDate(c.createdAt)}</span>
+            </div>
+        `;
+        card.style.cursor = 'pointer';
+        card.onclick = () => sendQuick(`View complaint details: ${c_id}`);
+        listContainer.appendChild(card);
+      });
+      
+      inner.appendChild(listContainer);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+      chatBody.appendChild(row);
+      scrollToBottom();
+    }
+
+    function renderAmenityList(amenities) {
+      if (!amenities || !amenities.length) return;
+      hideWelcome();
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.innerHTML = homefyLogoSvg;
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      
+      const listContainer = document.createElement('div');
+      listContainer.className = 'complaint-list'; 
+      listContainer.style.width = '100%';
+      
+      amenities.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'amenity-card';
+        card.innerHTML = `
+            <div class="amenity-name">🏊 ${a.name}</div>
+            <div class="amenity-loc">📍 ${a.location || 'Community'}</div>
+            <div class="quick-chips" style="margin-top:12px; font-size:12px">
+                <button class="chip" onclick="sendQuick('I want to book ${a.name}')">Book Now</button>
+            </div>
+        `;
+        listContainer.appendChild(card);
+      });
+      
+      inner.appendChild(listContainer);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+      chatBody.appendChild(row);
+      scrollToBottom();
+    }
+
+    function renderBookingList(bookings) {
+      if (!bookings || !bookings.length) return;
+      hideWelcome();
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.innerHTML = homefyLogoSvg;
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      
+      const listContainer = document.createElement('div');
+      listContainer.className = 'complaint-list';
+      listContainer.style.width = '100%';
+      
+      bookings.forEach(b => {
+        const card = document.createElement('div');
+        card.className = 'booking-card';
+        
+        const status = (b.status || 'PENDING').toUpperCase();
+        let statusClass = 'status-default';
+        if (status === 'CONFIRMED' || status === 'SUCCESS') statusClass = 'status-resolved';
+        else if (status === 'PENDING') statusClass = 'status-pending';
+
+        const name = b.amenity?.name || b.parkingCategory?.name || 'Booking';
+        const startTime = b.startTime ? formatAnnDate(b.startTime) : 'N/A';
+        const endTime = b.endTime ? formatAnnDate(b.endTime).split(',')[1] : '';
+
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="booking-name">${name}</span>
+                <span class="status-badge ${statusClass}">${status}</span>
+            </div>
+            <div class="booking-time">📅 ${startTime}${endTime ? ' -' + endTime : ''}</div>
+            ${b.receiptUrl ? `
+                <a href="${b.receiptUrl}" target="_blank" class="receipt-link">
+                    <span>🧾</span> View Receipt
+                </a>
+            ` : ''}
+        `;
+        listContainer.appendChild(card);
+      });
+      
+      inner.appendChild(listContainer);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+      chatBody.appendChild(row);
+      scrollToBottom();
+    }
+
+    function renderVisitorList(visitors) {
+      if (!visitors || !visitors.length) return;
+      hideWelcome();
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.innerHTML = homefyLogoSvg;
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      
+      const listContainer = document.createElement('div');
+      listContainer.className = 'complaint-list';
+      listContainer.style.width = '100%';
+      
+      visitors.forEach(v => {
+        const card = document.createElement('div');
+        card.className = 'visitor-card';
+        
+        const type = v.visitorType || 'VISITOR';
+        const purpose = v.purpose || 'Personal';
+        const checkIn = v.visitorLog?.checkInTime ? formatAnnDate(v.visitorLog.checkInTime) : 'Expected Today';
+
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="visitor-name">🚶 ${v.name}</span>
+                <span class="visitor-type">${type}</span>
+            </div>
+            <div class="visitor-info">📱 ${v.phoneNumber || 'N/A'}</div>
+            <div class="visitor-info">📝 ${purpose}</div>
+            <div class="visitor-info" style="margin-top:8px; font-weight:500; color:var(--primary)">🕒 ${checkIn}</div>
+        `;
+        card.style.cursor = 'pointer';
+        card.onclick = () => sendQuick(`View details for visitor: ${v.id}`);
+        listContainer.appendChild(card);
+      });
+      
+      inner.appendChild(listContainer);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+      chatBody.appendChild(row);
+      scrollToBottom();
+    }
+
+    function renderBillList(bills) {
+      if (!bills || !bills.length) return;
+      hideWelcome();
+      const row = document.createElement('div');
+      row.className = 'msg-row bot';
+      const av = document.createElement('div');
+      av.className = 'bot-avatar-sm';
+      av.innerHTML = homefyLogoSvg;
+      row.appendChild(av);
+
+      const inner = document.createElement('div');
+      inner.className = 'bubble-wrap';
+      
+      const listContainer = document.createElement('div');
+      listContainer.className = 'complaint-list';
+      listContainer.style.width = '100%';
+      
+      bills.forEach(b => {
+        const card = document.createElement('div');
+        card.className = 'bill-card';
+        
+        const status = (b.status || 'UNPAID').toUpperCase();
+        let statusClass = 'status-default';
+        if (status === 'PAID' || status === 'SUCCESS') statusClass = 'status-resolved';
+        else if (status === 'UNPAID' || status === 'PENDING') statusClass = 'status-pending';
+
+        const catName = b.category?.name || 'Maintenance Bill';
+        const amount = b.totalAmount || b.amount || 0;
+        const dueDate = b.lastDate ? b.lastDate.substring(0, 10) : 'N/A';
+
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="complaint-id">${b.billId || b.id || 'N/A'}</span>
+                <span class="status-badge ${statusClass}">${status}</span>
+            </div>
+            <div class="complaint-category">${catName}</div>
+            <div class="bill-amount">₹${amount}</div>
+            <div class="bill-meta">
+                <span>Due Date: ${dueDate}</span>
+                ${b.isOverDue ? '<span class="overdue-label">⚠️ Overdue</span>' : ''}
+            </div>
+        `;
+        card.style.cursor = 'pointer';
+        card.onclick = () => sendQuick(`Show details for bill: ${b.billId || b.id}`);
+        listContainer.appendChild(card);
+      });
+      
+      inner.appendChild(listContainer);
+      const meta = document.createElement('span');
+      meta.className = 'msg-meta';
+      meta.textContent = getTimestamp();
+      inner.appendChild(meta);
+      row.appendChild(inner);
+      chatBody.appendChild(row);
+      scrollToBottom();
+    }
+
+    function renderBillDetail(b) {
+        if (!b) return;
+        const row = document.createElement('div');
+        row.className = 'msg-row bot';
+        const av = document.createElement('div');
+        av.className = 'bot-avatar-sm';
+        av.innerHTML = homefyLogoSvg;
+        row.appendChild(av);
+
+        const inner = document.createElement('div');
+        inner.className = 'bubble-wrap';
+
+        const status = (b.status || 'UNPAID').toUpperCase();
+        let statusClass = 'status-default';
+        if (status === 'PAID') statusClass = 'status-resolved';
+        else if (status === 'UNPAID') statusClass = 'status-pending';
+
+        const detail = document.createElement('div');
+        detail.className = 'announcement-detail'; // Reusing style
+        detail.innerHTML = `
+            <div class="detail-header">
+                <span class="status-badge ${statusClass}">${status}</span>
+                <span class="card-date" style="margin-left:12px">${formatAnnDate(b.createdAt || new Date())}</span>
+            </div>
+            <div class="detail-title">${b.category?.name || 'Bill Payment'} - ${b.billId || b.id}</div>
+            <div class="bill-amount" style="font-size:24px; margin: 12px 0;">₹${b.totalAmount || b.amount}</div>
+            <div class="detail-body">
+                <strong>Description:</strong> ${b.maintenance?.description || 'N/A'}<br/>
+                <strong>Due Date:</strong> ${(b.lastDate || '').substring(0, 10)}<br/>
+                ${b.notes ? `<strong>Notes:</strong> ${b.notes}<br/>` : ''}
+                ${b.isOverDue ? '<br/><span style="color:red; font-weight:bold;">⚠️ This bill is overdue.</span>' : ''}
+            </div>
+            ${status === 'UNPAID' ? `<button class="cform-submit" style="width:100%; margin-top:16px;">Pay Now</button>` : ''}
+        `;
+        
+        inner.appendChild(detail);
+        const meta = document.createElement('span');
+        meta.className = 'msg-meta';
+        meta.textContent = getTimestamp();
+        inner.appendChild(meta);
+        row.appendChild(inner);
+        chatBody.appendChild(row);
+        scrollToBottom();
+    }
+
+    function renderComplaintDetail(c) {
+        if (!c) return;
+        const row = document.createElement('div');
+        row.className = 'msg-row bot';
+        const av = document.createElement('div');
+        av.className = 'bot-avatar-sm';
+        av.innerHTML = homefyLogoSvg;
+        row.appendChild(av);
+
+        const inner = document.createElement('div');
+        inner.className = 'bubble-wrap';
+
+        const status = (c.status || 'PENDING').toUpperCase();
+        let statusClass = 'status-default';
+        if (status === 'PENDING') statusClass = 'status-pending';
+        else if (status === 'RESOLVED') statusClass = 'status-resolved';
+
+        const detail = document.createElement('div');
+        detail.className = 'announcement-detail';
+        
+        let commentsHtml = '';
+        if (c.comments && c.comments.length > 0) {
+            commentsHtml = '<div style="margin-top:20px; border-top:1px solid #eee; padding-top:10px;"><strong style="font-size:13px; color:#64748b;">Comments:</strong>';
+            c.comments.forEach(cm => {
+                const c_name = `${cm.createdBy?.user?.firstName || ''} ${cm.createdBy?.user?.lastName || ''}`.trim();
+                commentsHtml += `
+                    <div style="margin-top:8px; font-size:12px;">
+                        <div style="font-weight:700;">${c_name} <span style="font-weight:400; font-size:10px; color:#94a3b8;">(${formatAnnDate(cm.createdAt)})</span></div>
+                        <div style="color:#334155;">${cm.message}</div>
+                    </div>
+                `;
+            });
+            commentsHtml += '</div>';
+        }
+
+        detail.innerHTML = `
+            <div class="detail-header">
+                <span class="status-badge ${statusClass}">${status}</span>
+                <span class="complaint-id" style="margin-left:12px">${c.complaintId || c.id}</span>
+            </div>
+            <div class="detail-title">${c.category?.name || 'Complaint'}</div>
+            <div class="detail-body">
+                <strong>Subject:</strong> ${c.title || 'N/A'}<br/>
+                <strong>Description:</strong> ${c.description || 'N/A'}<br/>
+                <strong>Location:</strong> ${c.location || 'N/A'}
+            </div>
+            ${commentsHtml}
+        `;
+        
+        inner.appendChild(detail);
+        const meta = document.createElement('span');
+        meta.className = 'msg-meta';
+        meta.textContent = getTimestamp();
+        inner.appendChild(meta);
+        row.appendChild(inner);
+        chatBody.appendChild(row);
+        scrollToBottom();
+    }
+
+    function renderVisitorDetail(v) {
+        if (!v) return;
+        const row = document.createElement('div');
+        row.className = 'msg-row bot';
+        const av = document.createElement('div');
+        av.className = 'bot-avatar-sm';
+        av.innerHTML = homefyLogoSvg;
+        row.appendChild(av);
+
+        const inner = document.createElement('div');
+        inner.className = 'bubble-wrap';
+
+        const detail = document.createElement('div');
+        detail.className = 'announcement-detail';
+        
+        const checkIn = v.visitorLog?.checkInTime ? formatAnnDate(v.visitorLog.checkInTime) : 'N/A';
+        const checkOut = v.visitorLog?.checkOutTime ? formatAnnDate(v.visitorLog.checkOutTime) : 'N/A';
+
+        detail.innerHTML = `
+            <div class="detail-header">
+                <span class="visitor-type">${v.visitorType || 'VISITOR'}</span>
+                <span class="card-date" style="margin-left:12px">Today</span>
+            </div>
+            <div class="detail-title">Visitor: ${v.name}</div>
+            <div class="detail-body">
+                <strong>Phone:</strong> ${v.phoneNumber || 'N/A'}<br/>
+                <strong>Purpose:</strong> ${v.purpose || 'N/A'}<br/>
+                <strong>Check-In:</strong> ${checkIn}<br/>
+                <strong>Check-Out:</strong> ${checkOut}<br/>
+                <strong>People:</strong> ${v.noOfPeoples || 1}<br/>
+                <strong>Vehicle:</strong> ${v.vehicleNumber || 'None'}
+            </div>
+        `;
+        
+        inner.appendChild(detail);
+        const meta = document.createElement('span');
+        meta.className = 'msg-meta';
+        meta.textContent = getTimestamp();
+        inner.appendChild(meta);
+        row.appendChild(inner);
+        chatBody.appendChild(row);
+        scrollToBottom();
     }
 
     userInput.focus();

@@ -15,9 +15,10 @@ from modules.meetings.meeting_api import MeetingMixin
 from modules.finance.finance_api import FinanceMixin
 from modules.maintenance.maintenance_api import MaintenanceMixin
 from modules.parking.parking_api import ParkingMixin
+from modules.announcements.announcement_api import AnnouncementMixin
 
 
-class HomefyAPIHandler(BaseAPIClient, AuthMixin, AmenityMixin, ComplaintMixin, CommunityMixin, MeetingMixin, FinanceMixin, MaintenanceMixin, ParkingMixin):
+class HomefyAPIHandler(BaseAPIClient, AuthMixin, AmenityMixin, ComplaintMixin, CommunityMixin, MeetingMixin, FinanceMixin, MaintenanceMixin, ParkingMixin, AnnouncementMixin):
     """Executes Homefy GraphQL queries and REST calls and summarises results."""
 
     # ── Intent → API chain map ────────────────────────────────────────────────
@@ -95,14 +96,39 @@ class HomefyAPIHandler(BaseAPIClient, AuthMixin, AmenityMixin, ComplaintMixin, C
             context_parts.append(self._q_all_entries_by_date(token))
 
         elif intent == "announcements":
-            unread_only = "unread" in user_message.lower()
-            context_parts.append(self._q_all_announcements(token, unread_only=unread_only))
-            import re
-            ann_match = re.search(r'\b(cm[a-z0-9]{20,})\b', user_message, re.IGNORECASE)
-            if ann_match:
-                ann_id = ann_match.group(1).lower()
-                detail = self._q_get_detailed_announcement(token, ann_id)
-                context_parts.append(self._fmt(detail, f"Detailed Announcement {ann_id}"))
+            try:
+                # Fetch categories for the context/LLM
+                cats = self._q_get_announcement_categories(token)
+                if cats:
+                    cat_lines = ["[Announcement Categories]:"]
+                    for c in cats:
+                        cat_lines.append(f"  - {c.get('name', 'Unknown')} (ID: {c.get('id')})")
+                    context_parts.append("\n".join(cat_lines) + "\n")
+                else:
+                    context_parts.append("[Announcement Categories]: No categories available.\n")
+
+                # Detect if user mentioned a category ID or Name
+                category_id = None
+                if cats:
+                    msg_lower = user_message.lower()
+                    for c in cats:
+                        c_id = c.get("id", "").lower()
+                        c_name = c.get("name", "").lower()
+                        if c_id in msg_lower or c_name in msg_lower:
+                            category_id = c.get("id")
+                            break
+
+                unread_only = "unread" in user_message.lower()
+                context_parts.append(self._q_all_announcements(token, unread_only=unread_only, category_id=category_id))
+                
+                import re
+                ann_match = re.search(r'\b(cm[a-z0-9]{20,})\b', user_message, re.IGNORECASE)
+                if ann_match:
+                    ann_id = ann_match.group(1).lower()
+                    detail = self._q_get_detailed_announcement(token, ann_id)
+                    context_parts.append(self._fmt(detail, f"Detailed Announcement {ann_id}"))
+            except Exception as e:
+                context_parts.append(f"[Announcements Error]: {e}")
 
         elif intent == "vehicles":
             context_parts.append(self._q_vehicles(token, role))

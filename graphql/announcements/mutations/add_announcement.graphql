@@ -1,0 +1,13 @@
+mutation CreateAnnouncement($data: CreateAnnouncementInput!) {
+  createAnnouncement(data: $data) {
+    id
+    title
+    description
+    type
+    announcementCategory {
+      id
+      name
+    }
+    createdAt
+  }
+}
