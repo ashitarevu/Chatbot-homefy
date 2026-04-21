@@ -546,38 +546,39 @@ class HomefyChatbot:
                         return marker_str
                 except Exception as e: print(f"Bill detail error: {e}")
 
-        if intent == "login":
-            if not user_token:
-                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to generate a bill.\n\nAre you logging in as a User or an Admin?")
-            user_role = getattr(self, "user_roles", {}).get(session_id, "")
-            admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
-            if user_role not in admin_roles:
-                reply = "🚫 Sorry, only Admins and Finance Managers can generate bills."
-                self._update_history(session_id, user_message, reply)
+            elif intent == "bills":
+                if not user_token:
+                    return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to generate a bill.\n\nAre you logging in as a User or an Admin?")
+                user_role = getattr(self, "user_roles", {}).get(session_id, "")
+                admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
+                if user_role not in admin_roles:
+                    reply = "🚫 Sorry, only Admins and Finance Managers can generate bills."
+                    self._update_history(session_id, user_message, reply)
+                    return reply
+                reply = "__BILL_FORM_MARKER__"
+                self._update_history(session_id, user_message, "I've opened the bill generation form for you. Please fill in the details and submit.")
                 return reply
-            reply = "__BILL_FORM_MARKER__"
-            self._update_history(session_id, user_message, "I've opened the bill generation form for you. Please fill in the details and submit.")
-            return reply
 
-        elif intent == "vehicles":
-            if not user_token:
-                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to create a parking category.\n\nAre you logging in as a User or an Admin?")
-            reply = "__PARKING_FORM_MARKER__"
-            self._update_history(session_id, user_message, "I've opened the parking category form for you. Please fill in the details and submit.")
-            return reply
-
-        elif intent == "announcements":
-            if not user_token:
-                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to publish announcements.\n\nAre you logging in as a User or an Admin?")
-            user_role = getattr(self, "user_roles", {}).get(session_id, "")
-            admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
-            if user_role not in admin_roles:
-                reply = "⚠️ Sorry, only admins can publish new announcements. You can view existing announcements instead."
-                self._update_history(session_id, user_message, reply)
+            elif intent == "vehicles":
+                if not user_token:
+                    return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to create a parking category.\n\nAre you logging in as a User or an Admin?")
+                reply = "__PARKING_FORM_MARKER__"
+                self._update_history(session_id, user_message, "I've opened the parking category form for you. Please fill in the details and submit.")
                 return reply
-            reply = "__ANNOUNCEMENT_FORM_MARKER__"
-            self._update_history(session_id, user_message, "I've opened the announcement creation form for you. Please fill in the details and publish.")
-            return reply
+
+            elif intent == "announcements":
+                if not user_token:
+                    return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to publish announcements.\n\nAre you logging in as a User or an Admin?")
+                user_role = getattr(self, "user_roles", {}).get(session_id, "")
+                admin_roles = ["APARTMENT_ADMIN", "FINANCE_ADMIN", "FACILITY_MANAGER"]
+                if user_role not in admin_roles:
+                    reply = "⚠️ Sorry, only admins can publish new announcements. You can view existing announcements instead."
+                    self._update_history(session_id, user_message, reply)
+                    return reply
+                reply = "__ANNOUNCEMENT_FORM_MARKER__"
+                self._update_history(session_id, user_message, "I've opened the announcement creation form for you. Please fill in the details and publish.")
+                return reply
+
 
         # ── Normal Chat Flow (Listing/Viewing) ────────────────────────────────
         if intent == "complaints_menu" and not self._is_write_request(user_message):
@@ -618,15 +619,16 @@ class HomefyChatbot:
                 print(f"Complaint list error: {e}")
 
         elif intent == "vehicles" and not self._is_write_request(user_message) and "parking" in user_message.lower():
-            if not user_token:
-                return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view parking.\n\nAre you logging in as a User or an Admin?")
-            options_json = [
-                {"id": "PARKING_RESIDENT_REQ", "label": "Resident Parking Categories"},
-                {"id": "PARKING_OTHER_REQ", "label": "Other Parking Categories"}
-            ]
-            marker_str = f"__PARKING_TYPE_MARKER__|{json.dumps(options_json)}"
-            self._update_history(session_id, user_message, "Which type of parking categories would you like to view?")
-            return marker_str
+            if user_message.strip() not in ["PARKING_RESIDENT_REQ", "PARKING_OTHER_REQ"]:
+                if not user_token:
+                    return self._ask_role_selection(session_id, user_message, "🔒 You need to be logged in to view parking.\n\nAre you logging in as a User or an Admin?")
+                options_json = [
+                    {"id": "PARKING_RESIDENT_REQ", "label": "Resident Parking Categories"},
+                    {"id": "PARKING_OTHER_REQ", "label": "Other Parking Categories"}
+                ]
+                marker_str = f"__PARKING_TYPE_MARKER__|{json.dumps(options_json)}"
+                self._update_history(session_id, user_message, "Which type of parking categories would you like to view?")
+                return marker_str
 
         elif intent == "announcements" and not self._is_write_request(user_message):
             if not user_token:
@@ -786,13 +788,35 @@ class HomefyChatbot:
                             self._update_history(session_id, user_message, msg)
                             return msg
 
-                    marker_str = f"__BILL_LIST_MARKER__|{json.dumps(raw_bills)}"
-                    self._update_history(session_id, user_message, "Here is a summary of your pending and paid bills:")
-                    return marker_str
-                else:
-                    msg = "No bills found for your account."
-                    self._update_history(session_id, user_message, msg)
-                    return msg
+                    is_paid_request = any(k in msg_l for k in ["paid", "history", "past", "receipt"])
+                    is_all_request = "all" in msg_l
+
+                    if is_paid_request:
+                        filtered_default = [b for b in raw_bills if b.get('status', '').upper() == 'PAID']
+                        summary_msg = "Here are your paid bills:"
+                    elif is_all_request:
+                        filtered_default = raw_bills
+                        summary_msg = "Here are all your bills:"
+                    else:
+                        # Default fallback (e.g. "my bills"): show only pending/overdue and exclude maintenance
+                        filtered_default = [
+                            b for b in raw_bills 
+                            if b.get('status', '').upper() in ['PENDING', 'OVERDUE']
+                            and 'maintenance' not in (b.get('category', {}).get('name', '').lower() or '')
+                        ]
+                        summary_msg = "Here are your pending bills:"
+                    
+                    if filtered_default:
+                        marker_str = f"__BILL_LIST_MARKER__|{json.dumps(filtered_default)}"
+                        self._update_history(session_id, user_message, summary_msg)
+                        return marker_str
+                    else:
+                        if is_paid_request:
+                            msg = "You have no paid bills."
+                        else:
+                            msg = "You have no pending bills at the moment."
+                        self._update_history(session_id, user_message, msg)
+                        return msg
             except Exception as e:
                 print(f"Bill list error: {e}")
             if not user_token:
@@ -976,20 +1000,9 @@ class HomefyChatbot:
         self.session_states[session_id] = {"state": "normal"}
         
         apt_name = chosen_apt.get("name", "Unknown Apartment")
-        return self._send_main_menu(session_id, f"✅ Awesome, you are now logged in to **{apt_name}**! What would you like to do?")
-
-    def _send_main_menu(self, session_id: str, intro_text: str):
-        """Returns the interactive main menu chips."""
-        options = [
-            {"id": "Show my bills", "label": "💳 My Bills"},
-            {"id": "I want to raise a complaint", "label": "📝 Raise a Complaint"},
-            {"id": "I want to book an amenity", "label": "🏊 Book Amenity"},
-            {"id": "switch_flat_req", "label": "🏢 Switch Flat/Apartment"},
-            {"id": "logout", "label": "🚪 Logout"}
-        ]
-        marker = f"__MAIN_MENU_MARKER__|{json.dumps(options)}"
-        self._update_history(session_id, "Menu request", intro_text)
-        return marker
+        reply = f"✅ Awesome, you are now logged in to **{apt_name}**! What would you like to do?"
+        self._update_history(session_id, "Selected flat", reply)
+        return reply
 
     def _update_history(self, session_id: str, user_message: str, bot_reply: str):
         history = self._get_history(session_id)

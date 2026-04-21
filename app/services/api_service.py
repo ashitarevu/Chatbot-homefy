@@ -16,9 +16,9 @@ from modules.finance.finance_api import FinanceMixin
 from modules.maintenance.maintenance_api import MaintenanceMixin
 from modules.parking.parking_api import ParkingMixin
 from modules.announcements.announcement_api import AnnouncementMixin
+from modules.visitors.visitor_api import VisitorMixin
 
-
-class HomefyAPIHandler(BaseAPIClient, AuthMixin, AmenityMixin, ComplaintMixin, CommunityMixin, MeetingMixin, FinanceMixin, MaintenanceMixin, ParkingMixin, AnnouncementMixin):
+class HomefyAPIHandler(BaseAPIClient, AuthMixin, AmenityMixin, ComplaintMixin, CommunityMixin, MeetingMixin, FinanceMixin, MaintenanceMixin, ParkingMixin, AnnouncementMixin, VisitorMixin):
     """Executes Homefy GraphQL queries and REST calls and summarises results."""
 
     # ── Intent → API chain map ────────────────────────────────────────────────

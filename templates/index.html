@@ -2550,16 +2550,24 @@
         const card = document.createElement('div');
         card.className = 'visitor-card';
         
-        const type = v.visitorType || 'VISITOR';
-        const purpose = v.purpose || 'Personal';
-        const checkIn = v.visitorLog?.checkInTime ? formatAnnDate(v.visitorLog.checkInTime) : 'Expected Today';
+        const type = v.type || v.visitorType || 'VISITOR';
+        const purpose = (v.category && v.category.name) ? v.category.name : (v.purpose || 'Personal');
+        const checkIn = (v.logs && v.logs.length > 0 && v.logs[0].createdAt) ? formatAnnDate(v.logs[0].createdAt) : 
+                        (v.visitorLog && v.visitorLog.checkInTime ? formatAnnDate(v.visitorLog.checkInTime) : 'Expected Today');
+
+        let flatInfo = '';
+        if (v.flat && v.flat.flatNumber) {
+            flatInfo = ` - Flat: ${v.flat.flatNumber}`;
+        } else if (v.helper && v.helper.flats && v.helper.flats.length > 0) {
+            flatInfo = ` - Flat: ${v.helper.flats[0].flatNumber}`;
+        }
 
         card.innerHTML = `
             <div class="card-header">
-                <span class="visitor-name">🚶 ${v.name}</span>
+                <span class="visitor-name">🚶 ${v.name} ${flatInfo}</span>
                 <span class="visitor-type">${type}</span>
             </div>
-            <div class="visitor-info">📱 ${v.phoneNumber || 'N/A'}</div>
+            <div class="visitor-info">👥 People: ${v.noOfPeoples || 1} | Status: ${v.status || 'N/A'}</div>
             <div class="visitor-info">📝 ${purpose}</div>
             <div class="visitor-info" style="margin-top:8px; font-weight:500; color:var(--primary)">🕒 ${checkIn}</div>
         `;

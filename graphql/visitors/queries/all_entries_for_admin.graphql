@@ -1,0 +1,29 @@
+query AllEntriesForAdmin($filter: AdminVisitorFilterInput!) {
+  allEntriesForAdmin(filter: $filter) {
+    count
+    data {
+      name
+      flat {
+        flatNumber
+      }
+      id
+      helper {
+        flats {
+          flatNumber
+        }
+      }
+      logs {
+        id
+        status
+        createdAt
+      }
+      category {
+        name
+      }
+      status
+      noOfPeoples
+      type
+    }
+    hasNext
+  }
+}

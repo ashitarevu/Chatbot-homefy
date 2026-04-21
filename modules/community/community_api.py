@@ -1,24 +1,5 @@
 class CommunityMixin:
     """Contains logic for all community-related queries (announcements, helpers, vehicles, etc)."""
-
-    def _q_all_entries_by_date(self, token):
-        q = self._load_gql("graphql/community/queries/all_entries_by_date.graphql")
-        return self._fmt(self.execute_graphql(q, {}, token), "Visitor Entries Today")
-
-    def _q_get_visitors_raw(self, token):
-        """Fetch visitor entries for today as a raw list."""
-        try:
-            q = self._load_gql("graphql/community/queries/all_entries_by_date.graphql")
-            data = self.execute_graphql(q, {}, token)
-            if "error" in data: return []
-            entries_obj = data.get("allEntriesByDate")
-            if isinstance(entries_obj, dict):
-                return entries_obj.get("data", [])
-            return []
-        except Exception:
-            return []
-
-
     def _q_vehicles(self, token, role):
         if role in ["OWNER", "TENANT", "OWNER_FAMILY", "RESIDENT"]:
             q = self._load_gql("graphql/community/queries/my_vehicles.graphql")
